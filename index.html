@@ -3,13 +3,21 @@
     <head>
         <title>Chart Playground</title>
         <script src="https://d3js.org/d3.v4.min.js" type="text/javascript"></script>
-        <script src="barchart.js" type="text/javascript"></script>
+        <script src="chartFactory.js" type="text/javascript"></script>
         
         <style>
             #bar{
                 height:500px;
                 width: 500px;
             }
+            #bar2{
+                height:500px;
+                width: 500px;
+            }
+            .text{
+                background-color: black;
+            }
+            
         </style>
 
     </head>
@@ -20,6 +28,31 @@
     </body>
     
     <script>
-        var barchart = InitialiseChart("bar");
+        
+        months = [{Month : 'Jan', Amount : 50},
+                  {Month : 'Feb', Amount : 40},
+                  {Month : 'Mar', Amount : 30},
+                  {Month :' Apr', Amount : 20},]
+        
+        var barchart = InitialiseChart("bar", {x : 'CATEGORICAL', y : 'CONTINUOUS',
+                                               type : 'BAR',
+                                                data : "BoEBaseRate3.csv",
+                                                xVar : 'DATE',
+                                                yVar : 'VALUE',
+                                                labels : {title : 'Bar1',
+                                                          xaxis : 'X title 1',
+                                                          yaxis : 'Y title 1'}});
+        barchart();
+        
+        var barchart2 = InitialiseChart("bar2", {x : 'CATEGORICAL', y : 'CONTINUOUS',
+                                                type : 'BAR',
+                                                data : months,
+                                                xVar : 'Month',
+                                                yVar : 'Amount',
+                                                labels : {title : 'Bar2',
+                                                          xaxis : 'X title 2',
+                                                          yaxis : 'Y title 2'}});
+        barchart2();
+
     </script>
 </html>    
