@@ -35,8 +35,9 @@
                   {Month :' Apr', Amount : 20},]
         
         var barchart = InitialiseChart("bar", {x : 'CATEGORICAL', y : 'CONTINUOUS',
-                                               type : 'BAR',
-                                                data : "BoEBaseRate3.csv",
+                                               type : 'VBAR',
+                                                data : {src : "BoEBaseRate3.csv",
+                                                        numCols : ['VALUE']},
                                                 xVar : 'DATE',
                                                 yVar : 'VALUE',
                                                 labels : {title : 'Bar1',
@@ -44,11 +45,12 @@
                                                           yaxis : 'Y title 1'}});
         barchart();
         
-        var barchart2 = InitialiseChart("bar2", {x : 'CATEGORICAL', y : 'CONTINUOUS',
-                                                type : 'BAR',
-                                                data : months,
-                                                xVar : 'Month',
-                                                yVar : 'Amount',
+        var barchart2 = InitialiseChart("bar2", {x : 'CONTINUOUS', y : 'CATEGORICAL',
+                                                type : 'HBAR',
+                                                data : {src : months,
+                                                        numCols : ['Amount']},
+                                                xVar : 'Amount',
+                                                yVar : 'Month',
                                                 labels : {title : 'Bar2',
                                                           xaxis : 'X title 2',
                                                           yaxis : 'Y title 2'}});
