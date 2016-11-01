@@ -9,7 +9,7 @@
     <style>
         #bar {
             height: 500px;
-            width: 500px;
+            width: 600px;
         }
         
         #bar2 {
@@ -48,7 +48,7 @@
     var barchart = InitialiseChart("bar", {
         x: 'CATEGORICAL',
         y: 'CONTINUOUS',
-        type: 'BAR',
+        type: 'VBAR',
         data: {
             src: "BoEBaseRate3.csv",
             numCols: ['VALUE']
@@ -66,7 +66,7 @@
     var barchart2 = InitialiseChart("bar2", {
         x: 'CONTINUOUS',
         y: 'CATEGORICAL',
-        type: 'BAR',
+        type: 'HBAR',
         data: {
             src: months,
             numCols: ['Amount']
