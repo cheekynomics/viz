@@ -28,7 +28,7 @@ const makeHBarChart = (chartObject, dataIn, xObject, yObject, chartInstructions2
 
 const makeCategoricalAxis = (dims) => {
     return d3.scaleBand().rangeRound(dims).padding(0.1);
-};
+}; 
 
 
 const makeContinuousAxis = (dims) => {
