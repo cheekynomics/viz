@@ -1,6 +1,52 @@
 //<script src="https://d3js.org/d3.v4.min.js" type="text/javascript"></script>
 
 
+
+const makeVBarChart = (chartObject, dataIn, xObject, yObject, chartInstructions2, chartDimensions2) => {
+    chartObject.selectAll(".bar")
+        .data(dataIn)
+        .enter().append("rect")
+        .attr("class", "bar")
+        .attr("x", function(d) { return xObject(d[chartInstructions2.data.xVariable]); })
+        .attr("y", function(d) { return yObject(d[chartInstructions2.data.yVariable]); })
+        .attr("width", xObject.bandwidth())
+        .attr("height", function(d) { return chartDimensions2.chartHeight - yObject(d[chartInstructions2.data.yVariable]); });
+};
+
+
+const makeHBarChart = (chartObject, dataIn, xObject, yObject, chartInstructions2, chartDimensions2) => {
+    chartObject.selectAll(".bar")
+        .data(dataIn)
+        .enter().append("rect")
+        .attr("class", "bar")
+        .attr("x", 0) //function(d) { return xObject(d[chartInstructions2.data.xVariable]); })
+        .attr("y", function(d) { return yObject(d[chartInstructions2.data.yVariable]); })
+        .attr("height", yObject.bandwidth())
+        .attr("width", function(d) { return xObject(d[chartInstructions2.data.xVariable]); });
+};
+
+
+const makeCategoricalAxis = (dims) => {
+    return d3.scaleBand().rangeRound(dims).padding(0.1);
+};
+
+
+const makeContinuousAxis = (dims) => {
+    return d3.scaleLinear().rangeRound(dims);
+};
+
+
+const makeCategoricalDomain = (dataIn, name) => {
+    return dataIn.map(function(d) { return d[name]; });
+};
+
+
+const makeContinuousDomain = (dataIn, name) => {
+    return [0, d3.max(dataIn, function(d) { return d[name]; })];
+};
+
+
+// determines which of the above functions to call to create the chart
 let lookup = {
     makeAxisObj: {
         "CATEGORICAL": makeCategoricalAxis,
@@ -23,6 +69,37 @@ let lookup = {
 };
 
 
+const makeXAxis = (chartIn, xAxisObject2, chartDimensions2, chartInstructions2) => {
+    chartIn.append("g")
+        .attr("class", "axis x-axis")
+        .attr("transform", "translate(0," + chartDimensions2.chartHeight + ")")
+        .call(d3.axisBottom(xAxisObject2));
+
+    //xaxis title
+    chartIn.append("text")
+        .attr("y", (chartDimensions2.chartHeight + (chartDimensions2.margins.b - 5)))
+        .attr("x", (chartDimensions2.chartWidth / 2))
+        .attr("text-anchor", "middle")
+        .text(chartInstructions2.labels.xaxis);
+};
+
+
+const makeYAxis = (chartIn, yAxisObject2, chartDimensions2, chartInstructions2) => {
+    chartIn.append("g")
+        .attr("class", "axis y-axis")
+        .call(d3.axisLeft(yAxisObject2));
+
+    //yaxis title
+    chartIn.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", -(chartDimensions2.margins.l - 15))
+        .attr("x", -chartDimensions2.chartHeight / 2)
+        .attr("text-anchor", "middle")
+        .text(chartInstructions2.labels.yaxis);
+};
+
+
+
 // This function chooses the dataType from the source.
 const deriveDataType = (dataSource) => {
     if (Array.isArray(dataSource)) {
@@ -34,19 +111,36 @@ const deriveDataType = (dataSource) => {
     }
 };
 
+
+//this function coerces x- and y- variables to numeric
+const coerceToNumeric = (dataIn, v1, v2) => {
+    if (!isNaN(dataIn[v1])) {
+        dataIn[v1] = +dataIn[v1];
+    }
+    if (!isNaN(dataIn[v2])) {
+        dataIn[v2] = +dataIn[v2];
+    }
+    return dataIn;
+};
+
+
+//selects the chart object from an id string
 const fromID = (idString) => d3.select(`#${idString}`);
 
-function InitialiseChart(containerID, config) {
+
+const InitialiseChart = (containerID, config) => {
     //takes the config file that was passed to the function and uses this to create the chart instructions
 
     let instructions = {
         xaxis: {
             obj: lookup.makeAxisObj[config.x],
-            domain: lookup.setAxisDomain[config.x]
+            domain: lookup.setAxisDomain[config.x],
+            type: config.x
         },
         yaxis: {
             obj: lookup.makeAxisObj[config.y],
-            domain: lookup.setAxisDomain[config.y]
+            domain: lookup.setAxisDomain[config.y],
+            type: config.y
         },
         data: {
             source: config.data,
@@ -60,17 +154,8 @@ function InitialiseChart(containerID, config) {
 
     return prepareChartInContainer(fromID(containerID), instructions);
 
-}
-
-const coerceToNumeric = (dataIn, v1, v2) => {
-    if (!isNaN(dataIn[v1])) {
-        dataIn[v1] = +dataIn[v1];
-    }
-    if (!isNaN(dataIn[v2])) {
-        dataIn[v2] = +dataIn[v2];
-    }
-    return dataIn;
 };
+
 
 const prepareChartInContainer = (container, instructions) => {
     //Prepares the dimensions of the chart as well as the static elements such as the axis constructors
@@ -99,8 +184,12 @@ const prepareChartInContainer = (container, instructions) => {
             chartWidth
         };
         //creates the x- and y-axis objects from the instructions
-        let x = instructions.xaxis.obj(dimensions.chartWidth),
-            y = instructions.yaxis.obj(dimensions.chartHeight);
+        let xAxisConstructor = instructions.xaxis.obj,
+            yAxisConstructor = instructions.yaxis.obj;
+
+
+        let x = xAxisConstructor([0, dimensions.chartWidth]),
+            y = yAxisConstructor([dimensions.chartHeight, 0]);
 
         //adds the svg to the div, setting the height and width
         let chart = chartContainer.append("svg")
@@ -115,17 +204,22 @@ const prepareChartInContainer = (container, instructions) => {
     };
 };
 
+
+
+
+
+
 const updateChart = (inputChart, xAxisObject, yAxisObject, chartInstructions, chartDimensions) => {
 
     let xDomain = chartInstructions.xaxis.domain,
         yDomain = chartInstructions.yaxis.domain,
         xVar = chartInstructions.data.xVariable,
         yVar = chartInstructions.data.yVariable;
+    let createChart = chartInstructions.chartType;
+
     const dataCallback = (error, data) => {
 
         if (error) throw error;
-
-        let createChart = chartInstructions.chartType;
 
         //binds the data to the axes 
         xAxisObject.domain(xDomain(data, xVar));
@@ -141,24 +235,34 @@ const updateChart = (inputChart, xAxisObject, yAxisObject, chartInstructions, ch
     let dataProcessor = null;
     switch (chartInstructions.data.type) {
         case "TSV":
-            dataProcessor = d3.tsv;
-            break;
+            {
+                dataProcessor = d3.tsv;
+                break;
+            }
         case "CSV":
-            dataProcessor = d3.csv;
-            break;
+            {
+                dataProcessor = d3.csv;
+                break;
+            }
         case "JSON":
-            dataProcessor = d3.json;
-            break;
+            {
+                dataProcessor = d3.json;
+                break;
+            }
         case "ARRAY":
-            // makes the different bits of the charts - only triggers if the data was passed as a JSON to this function,
-            //otherwise the data callback does its thing
-            xAxisObject.domain(chartInstructions.xaxis.domain(chartInstructions.data.source.src, chartInstructions.data.xVariable));
-            yAxisObject.domain(chartInstructions.yaxis.domain(chartInstructions.data.source.src, chartInstructions.data.yVariable));
-            makeXAxis(inputChart, xAxisObject, chartDimensions, chartInstructions);
-            makeYAxis(inputChart, yAxisObject, chartDimensions, chartInstructions);
+            {
+                // makes the different bits of the charts - only triggers if the data was passed as a JSON to this function,
+                //otherwise the data callback does its thing
+                let data = chartInstructions.data.source.src;
+                xAxisObject.domain(xDomain(data, xVar));
+                yAxisObject.domain(yDomain(data, yVar));
 
-            chartInstructions.chartType(inputChart, chartInstructions.data.source.src, xAxisObject, yAxisObject, chartInstructions, chartDimensions);
-            break;
+                makeXAxis(inputChart, xAxisObject, chartDimensions, chartInstructions);
+                makeYAxis(inputChart, yAxisObject, chartDimensions, chartInstructions);
+
+                createChart(inputChart, data, xAxisObject, yAxisObject, chartInstructions, chartDimensions);
+                break;
+            }
     }
 
     let data = chartInstructions.data.source.src;
@@ -166,80 +270,3 @@ const updateChart = (inputChart, xAxisObject, yAxisObject, chartInstructions, ch
         dataProcessor(data, function(d) { return coerceToNumeric(d, xVar, yVar); }, dataCallback);
     }
 };
-
-
-function makeXAxis(chartIn, xAxisObject2, chartDimensions2, chartInstructions2) {
-
-    chartIn.append("g")
-        .attr("class", "axis x-axis")
-        .attr("transform", "translate(0," + chartDimensions2.chartHeight + ")")
-        .call(d3.axisBottom(xAxisObject2));
-
-    //xaxis title
-    chartIn.append("text")
-        .attr("y", (chartDimensions2.chartHeight + (chartDimensions2.margins.b - 5)))
-        .attr("x", (chartDimensions2.chartWidth / 2))
-        .attr("text-anchor", "middle")
-        .text(chartInstructions2.labels.xaxis);
-}
-
-function makeYAxis(chartIn, yAxisObject2, chartDimensions2, chartInstructions2) {
-    chartIn.append("g")
-        .attr("class", "axis y-axis")
-        .call(d3.axisLeft(yAxisObject2));
-
-    //yaxis title
-    chartIn.append("text")
-        .attr("transform", "rotate(-90)")
-        .attr("y", -(chartDimensions2.margins.l - 15))
-        .attr("x", -chartDimensions2.chartHeight / 2)
-        .attr("text-anchor", "middle")
-        .text(chartInstructions2.labels.yaxis);
-}
-
-
-
-
-
-
-
-
-
-function makeVBarChart(chartObject, dataIn, xObject, yObject, chartInstructions2, chartDimensions2) {
-    chartObject.selectAll(".bar")
-        .data(dataIn)
-        .enter().append("rect")
-        .attr("class", "bar")
-        .attr("x", function(d) { return xObject(d[chartInstructions2.data.xVariable]); })
-        .attr("y", function(d) { return yObject(d[chartInstructions2.data.yVariable]); })
-        .attr("width", xObject.bandwidth())
-        .attr("height", function(d) { return chartDimensions2.chartHeight - yObject(d[chartInstructions2.data.yVariable]); });
-}
-
-function makeHBarChart(chartObject, dataIn, xObject, yObject, chartInstructions2, chartDimensions2) {
-    chartObject.selectAll(".bar")
-        .data(dataIn)
-        .enter().append("rect")
-        .attr("class", "bar")
-        .attr("x", function(d) { return xObject(d[chartInstructions2.data.xVariable]); })
-        .attr("y", function(d) { return yObject(d[chartInstructions2.data.yVariable]); })
-        .attr("height", yObject.bandwidth())
-        .attr("width", function(d) { return chartDimensions2.chartWidth - xObject(d[chartInstructions2.data.xVariable]); });
-}
-
-function makeCategoricalAxis(space) {
-    return d3.scaleBand().rangeRound([0, space]).padding(0.1);
-}
-
-function makeContinuousAxis(space) {
-    return d3.scaleLinear().rangeRound([space, 0]);
-}
-
-function makeCategoricalDomain(dataIn, name) {
-    // console.log(dataIn);
-    return dataIn.map(function(d) { return d[name]; });
-}
-
-function makeContinuousDomain(dataIn, name) {
-    return [0, d3.max(dataIn, function(d) { return d[name]; })];
-}
