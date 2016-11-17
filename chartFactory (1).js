@@ -25,13 +25,42 @@ const makeHBarChart = (chartObject, dataIn, xObject, yObject, chartInstructions2
         .attr("width", function(d) { return xObject(d[chartInstructions2.data.xVariable]); });
 };
 
-
-const makeCategoricalAxis = (dims) => {
-    return d3.scaleBand().rangeRound(dims).padding(0.1);
+const makeLineChart = (chartObject, dataIn, xObject, yObject, chartInstructions2, chartDimensions2) => {
+  let xVar = chartInstructions2.data.xVariable,
+      yVar = chartInstructions2.data.yVariable;
+      
+  for (let i in yVar){
+    let line = d3.line()
+      .x(function(d) {return xObject(d[xVar]);})
+      .y(function(d){return yObject(d[yVar[i]]);});
+    
+    chartObject.append("path")
+      .datum(dataIn)
+      .attr("class", "line")
+      .attr("d", line);
+    
+    chartObject.selectAll("dot")
+    .data(dataIn)
+    .enter().append("circle")
+      .attr("r", 3.5)
+      .attr("cx", function(d) {return xObject(d[xVar]);})
+      .attr("cy", function(d) {return yObject(d[yVar[i]]);});
+  }
 };
 
 
-const makeContinuousAxis = (dims) => {
+const makeCategoricalAxis = (dims, dest) => {
+    if (dest === "LINE"){
+      return d3.scalePoint().range(dims);//.rangePoints(dims);
+    }
+    else{
+      return d3.scaleBand().rangeRound(dims).padding(0.1);
+    }
+    
+};
+
+
+const makeContinuousAxis = (dims, dest) => {
     return d3.scaleLinear().rangeRound(dims);
 };
 
@@ -40,11 +69,24 @@ const makeCategoricalDomain = (dataIn, name) => {
     return dataIn.map(function(d) { return d[name]; });
 };
 
+const maxOfVarsInArray = (data, vars)=>{
+  let getMaxOf = [];
+  for (let i = 0; i < vars.length; i++){
+    getMaxOf.push(data[vars[i]]);
+  }
+  return d3.max(getMaxOf);
+}
 
-const makeContinuousDomain = (dataIn, name) => {
-    return [0, d3.max(dataIn, function(d) { return d[name]; })];
+
+const makeContinuousDomain = (dataIn, vars) => {
+  if (Array.isArray(vars)){
+    return [0, d3.max(dataIn, function(d) { return maxOfVarsInArray(d, vars); })];
+  }
+  else{
+    return [0, d3.max(dataIn, function(d) { return d;})];
+  }
+    
 };
-
 
 // determines which of the above functions to call to create the chart
 let lookup = {
@@ -58,7 +100,8 @@ let lookup = {
     },
     chartType: {
         "VBAR": makeVBarChart,
-        "HBAR": makeHBarChart
+        "HBAR": makeHBarChart,
+        "LINE" : makeLineChart
     },
     dataType: {
         "ARRAY": "__",
@@ -135,12 +178,14 @@ const InitialiseChart = (containerID, config) => {
         xaxis: {
             obj: lookup.makeAxisObj[config.x],
             domain: lookup.setAxisDomain[config.x],
-            type: config.x
+            type: config.x,
+            chartType: config.type
         },
         yaxis: {
             obj: lookup.makeAxisObj[config.y],
             domain: lookup.setAxisDomain[config.y],
-            type: config.y
+            type: config.y,
+            chartType: config.type
         },
         data: {
             source: config.data,
@@ -188,8 +233,8 @@ const prepareChartInContainer = (container, instructions) => {
             yAxisConstructor = instructions.yaxis.obj;
 
 
-        let x = xAxisConstructor([0, dimensions.chartWidth]),
-            y = yAxisConstructor([dimensions.chartHeight, 0]);
+        let x = xAxisConstructor([0, dimensions.chartWidth], instructions.xaxis.chartType),
+            y = yAxisConstructor([dimensions.chartHeight, 0], instructions.yaxis.chartType);
 
         //adds the svg to the div, setting the height and width
         let chart = chartContainer.append("svg")
@@ -221,7 +266,7 @@ const updateChart = (inputChart, xAxisObject, yAxisObject, chartInstructions, ch
 
         if (error) throw error;
 
-        //binds the data to the axes 
+        //binds the data to the axes
         xAxisObject.domain(xDomain(data, xVar));
         yAxisObject.domain(yDomain(data, yVar));
         //creates the axes on the chart
