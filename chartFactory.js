@@ -26,37 +26,37 @@ const makeHBarChart = (chartObject, dataIn, xObject, yObject, chartInstructions2
 };
 
 const makeLineChart = (chartObject, dataIn, xObject, yObject, chartInstructions2, chartDimensions2) => {
-  let xVar = chartInstructions2.data.xVariable,
-      yVar = chartInstructions2.data.yVariable;
-      
-  for (let i in yVar){
-    let line = d3.line()
-      .x(function(d) {return xObject(d[xVar]);})
-      .y(function(d){return yObject(d[yVar[i]]);});
-    
-    chartObject.append("path")
-      .datum(dataIn)
-      .attr("class", "line")
-      .attr("d", line);
-    
-    chartObject.selectAll("dot")
-    .data(dataIn)
-    .enter().append("circle")
-      .attr("r", 3.5)
-      .attr("cx", function(d) {return xObject(d[xVar]);})
-      .attr("cy", function(d) {return yObject(d[yVar[i]]);});
-  }
+    let xVar = chartInstructions2.data.xVariable,
+        yVar = chartInstructions2.data.yVariable;
+
+
+    for (let i in yVar) {
+        let line = d3.line()
+            .x(function(d) { console.log(xObject(d[xVar])); return xObject(d[xVar]); })
+            .y(function(d) { return yObject(d[yVar[i]]); });
+
+        chartObject.append("path")
+            .datum(dataIn)
+            .attr("class", "line")
+            .attr("d", line);
+
+        chartObject.selectAll("dot")
+            .data(dataIn)
+            .enter().append("circle")
+            .attr("r", 3.5)
+            .attr("cx", function(d) { return xObject(d[xVar]); })
+            .attr("cy", function(d) { return yObject(d[yVar[i]]); });
+    }
 };
 
 
 const makeCategoricalAxis = (dims, dest) => {
-    if (dest === "LINE"){
-      return d3.scalePoint().range(dims);//.rangePoints(dims);
+    if (dest === "LINE") {
+        return d3.scalePoint().range(dims); //.rangePoints(dims);
+    } else {
+        return d3.scaleBand().rangeRound(dims).padding(0.1);
     }
-    else{
-      return d3.scaleBand().rangeRound(dims).padding(0.1);
-    }
-    
+
 };
 
 
@@ -69,23 +69,24 @@ const makeCategoricalDomain = (dataIn, name) => {
     return dataIn.map(function(d) { return d[name]; });
 };
 
-const maxOfVarsInArray = (data, vars)=>{
-  let getMaxOf = [];
-  for (let i = 0; i < vars.length; i++){
-    getMaxOf.push(data[vars[i]]);
-  }
-  return d3.max(getMaxOf);
+const maxOfVarsInArray = (data, vars) => {
+    let getMaxOf = [];
+    for (let i = 0; i < vars.length; i++) {
+        getMaxOf.push(data[vars[i]]);
+    }
+    return d3.max(getMaxOf);
 }
 
 
 const makeContinuousDomain = (dataIn, vars) => {
-  if (Array.isArray(vars)){
-    return [0, d3.max(dataIn, function(d) { return maxOfVarsInArray(d, vars); })];
-  }
-  else{
-    return [0, d3.max(dataIn, function(d) { return d;})];
-  }
-    
+    // Is it best to ensure that we always pass a list of objects to this function?
+    //I can't think of a situation where there would be multiple y-variables; makes sense to be able to pass a single variable
+    if (Array.isArray(vars)) {
+        return [0, d3.max(dataIn, function(d) { return maxOfVarsInArray(d, vars); })];
+    } else {
+        return [0, d3.max(dataIn, function(d) { return d[vars]; })];
+    }
+
 };
 
 // determines which of the above functions to call to create the chart
@@ -101,7 +102,7 @@ let lookup = {
     chartType: {
         "VBAR": makeVBarChart,
         "HBAR": makeHBarChart,
-        "LINE" : makeLineChart
+        "LINE": makeLineChart
     },
     dataType: {
         "ARRAY": "__",
@@ -113,6 +114,7 @@ let lookup = {
 
 
 const makeXAxis = (chartIn, xAxisObject2, chartDimensions2, chartInstructions2) => {
+
     chartIn.append("g")
         .attr("class", "axis x-axis")
         .attr("transform", "translate(0," + chartDimensions2.chartHeight + ")")
@@ -232,7 +234,6 @@ const prepareChartInContainer = (container, instructions) => {
         let xAxisConstructor = instructions.xaxis.obj,
             yAxisConstructor = instructions.yaxis.obj;
 
-
         let x = xAxisConstructor([0, dimensions.chartWidth], instructions.xaxis.chartType),
             y = yAxisConstructor([dimensions.chartHeight, 0], instructions.yaxis.chartType);
 
@@ -245,6 +246,7 @@ const prepareChartInContainer = (container, instructions) => {
             .attr("transform", `translate(${dimensions.margins.l},${ dimensions.margins.t})`);
 
         //binds the data to the chart skeleton
+
         updateChart(g, x, y, instructions, dimensions);
     };
 };
@@ -265,7 +267,6 @@ const updateChart = (inputChart, xAxisObject, yAxisObject, chartInstructions, ch
     const dataCallback = (error, data) => {
 
         if (error) throw error;
-
         //binds the data to the axes
         xAxisObject.domain(xDomain(data, xVar));
         yAxisObject.domain(yDomain(data, yVar));
@@ -273,6 +274,7 @@ const updateChart = (inputChart, xAxisObject, yAxisObject, chartInstructions, ch
         makeXAxis(inputChart, xAxisObject, chartDimensions, chartInstructions);
         makeYAxis(inputChart, yAxisObject, chartDimensions, chartInstructions);
         //displays the data on the chart
+
         createChart(inputChart, data, xAxisObject, yAxisObject, chartInstructions, chartDimensions);
     };
 
@@ -299,6 +301,8 @@ const updateChart = (inputChart, xAxisObject, yAxisObject, chartInstructions, ch
                 // makes the different bits of the charts - only triggers if the data was passed as a JSON to this function,
                 //otherwise the data callback does its thing
                 let data = chartInstructions.data.source.src;
+                let a = xDomain(data, xVar);
+                console.log(a);
                 xAxisObject.domain(xDomain(data, xVar));
                 yAxisObject.domain(yDomain(data, yVar));
 

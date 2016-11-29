@@ -17,6 +17,18 @@
             width: 500px;
         }
         
+        #line,
+        #line2 {
+            height: 500px;
+            width: 500px;
+        }
+        
+        .line {
+            fill: none;
+            stroke: #333;
+            stroke-width: 1.5px;
+        }
+        
         .text {
             background-color: black;
         }
@@ -27,6 +39,8 @@
 <body>
     <div id="bar"></div>
     <div id="bar2"></div>
+    <div id="line"></div>
+    <div id="line2"></div>
 
 </body>
 
@@ -54,7 +68,7 @@
             numCols: ['VALUE']
         },
         xVar: 'DATE',
-        yVar: 'VALUE',
+        yVar: ['VALUE'],
         labels: {
             title: 'Bar1',
             xaxis: 'X title 1',
@@ -71,7 +85,7 @@
             src: months,
             numCols: ['Amount']
         },
-        xVar: 'Amount',
+        xVar: ['Amount'],
         yVar: 'Month',
         labels: {
             title: 'Bar2',
@@ -80,6 +94,64 @@
         }
     });
     barchart2();
+
+    var linechart = InitialiseChart("line", {
+        x: 'CATEGORICAL',
+        y: 'CONTINUOUS',
+        type: 'LINE',
+        data: {
+            src: months,
+            numCols: ['Amount']
+        },
+        xVar: 'Month',
+        yVar: ['Amount'],
+        labels: {
+            title: 'Line',
+            xaxis: 'X title 2',
+            yaxis: 'Y title 2'
+        }
+    });
+    linechart();
+
+    let contvar = [{
+        'temp': 5,
+        'prec': 25,
+        'wind': 30
+    }, {
+        'temp': 7,
+        'prec': 15,
+        'wind': 20
+    }, {
+        'temp': 10,
+        'prec': 3,
+        'wind': 40
+    }, {
+        'temp': 13,
+        'prec': 29,
+        'wind': 25
+    }, {
+        'temp': 14,
+        'prec': 18,
+        'wind': 35
+    }]
+
+    var linechart2 = InitialiseChart("line2", {
+        x: 'CONTINUOUS',
+        y: 'CONTINUOUS',
+        type: 'LINE',
+        data: {
+            src: contvar,
+            numCols: ['temp', 'prec', 'wind']
+        },
+        xVar: 'temp',
+        yVar: ['prec', 'wind'],
+        labels: {
+            title: 'Line',
+            xaxis: 'X title 2',
+            yaxis: 'Y title 2'
+        }
+    });
+    linechart2();
 </script>
 
 </html>
