@@ -43,7 +43,6 @@
     <div id="line2"></div>
 
 </body>
-
 <script>
     months = [{
         Month: 'Jan',
@@ -67,6 +66,10 @@
             src: "BoEBaseRate3.csv",
             numCols: ['VALUE']
         },
+
+        colourType: 'regions',
+        colourScheme: 'dark',
+
         xVar: 'DATE',
         yVar: ['VALUE'],
         labels: {
@@ -85,6 +88,10 @@
             src: months,
             numCols: ['Amount']
         },
+
+        colourType: 'regions',
+        colourScheme: 'light',
+
         xVar: ['Amount'],
         yVar: 'Month',
         labels: {
@@ -103,6 +110,10 @@
             src: months,
             numCols: ['Amount']
         },
+
+        colourType: 'categories',
+        colourScheme: 'dark',
+
         xVar: 'Month',
         yVar: ['Amount'],
         labels: {
@@ -143,6 +154,10 @@
             src: contvar,
             numCols: ['temp', 'prec', 'wind']
         },
+
+        colourType: 'categories',
+        colourScheme: 'light',
+
         xVar: 'temp',
         yVar: ['prec', 'wind'],
         labels: {
