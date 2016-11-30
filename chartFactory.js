@@ -5,22 +5,22 @@ let colourSchemes = {
             "rgb(197,213,240)", "rgb(65,54,158)", "rgb(169,195,88)",
             "rgb(142,51,68)", "rgb(131,236,102)", "rgb(246,122,254)"
         ],
-        "light": ["rgb(255  106  106)", "rgb(169  255  253)", "rgb(98  155  163)",
-            "rgb(223  239  255)", "rgb(142  131  235)", "rgb(220  246  139)",
-            "rgb(219  128  145)", "rgb(182  255  153)", "rgb(255  173  255)"
+        "light": ["rgb(255, 106, 106)", "rgb(169, 255, 253)", "rgb(98, 155, 163)",
+            "rgb(223, 239, 255)", "rgb(142, 131, 235)", "rgb(220, 246, 139)",
+            "rgb(219, 128, 145)", "rgb(182, 255, 153)", "rgb(255, 173,  255)"
         ]
     },
     "categories": {
-        "dark": ["rgba(209, 35, 102, 1)", "rgb(22,123,43)", "rgb(242,51,135)",
+        "dark": ["rgb(209, 35, 102)", "rgb(22,123,43)", "rgb(242,51,135)",
             "rgb(17,103,126)", "rgb(84,126,236)", "rgb(79,40,175)",
             "rgb(205,73,220)", "rgb(69,62,125)", "rgb(124,138,79)",
             "rgb(208,31,24)", "rgb(63,76,8)", "rgb(197,109,43)"
         ],
 
-        "light": ["rgb(255  112  179)", "rgb(99  200  120)", "rgb(255  128  212)",
-            "rgb(94  180  203)", "rgb(161  203  255)", "rgb(156  117  252)",
-            "rgb(255  150  255)", "rgb(146  139  202)", "rgb(175  189  130)",
-            "rgb(255  108  101)", "rgb(140  153  85)", "rgb(248  160  94)"
+        "light": ["rgb(255, 112, 179)", "rgb(99, 200, 120)", "rgb(255, 128, 212)",
+            "rgb(94, 180, 203)", "rgb(161, 203, 255)", "rgb(156, 117, 252)",
+            "rgb(255, 150, 255)", "rgb(146, 139, 202)", "rgb(175, 189, 130)",
+            "rgb(255, 108, 101)", "rgb(140, 153, 85)", "rgb(248, 160, 94)"
         ]
     }
 };
@@ -37,7 +37,7 @@ const makeVBarChart = (chartObject, dataIn, xObject, yObject, chartInstructions2
         .attr("y", function(d) { return yObject(d[chartInstructions2.data.yVariable]); })
         .attr("width", xObject.bandwidth())
         .attr("height", function(d) { return chartDimensions2.chartHeight - yObject(d[chartInstructions2.data.yVariable]); })
-        .style("fill", function(d, i) { return colours[i]; });
+        .style("fill", function(d, i) {return colours[i]; });
 };
 
 //colours don't work'
@@ -47,15 +47,14 @@ const makeHBarChart = (chartObject, dataIn, xObject, yObject, chartInstructions2
     chartObject.selectAll(".bar")
         .data(dataIn)
         .enter().append("rect")
-        .attr("class", "bar")
+        .attr("class", "bar colourMeImpressed")
         .attr("x", 0) //function(d) { return xObject(d[chartInstructions2.data.xVariable]); })
         .attr("y", function(d) { return yObject(d[chartInstructions2.data.yVariable]); })
         .attr("height", yObject.bandwidth())
         .attr("width", function(d) { return xObject(d[chartInstructions2.data.xVariable]); })
-        .style("fill", function(d, i) { console.log(colours[i]); return colours[i]; });
+        .style("fill", function(d, i) {return colours[i]; });
 };
 
-//colours don't work'
 const makeLineChart = (chartObject, dataIn, xObject, yObject, chartInstructions2, chartDimensions2) => {
     let xVar = chartInstructions2.data.xVariable,
         yVar = chartInstructions2.data.yVariable,
@@ -71,7 +70,8 @@ const makeLineChart = (chartObject, dataIn, xObject, yObject, chartInstructions2
             .datum(dataIn)
             .attr("class", "line")
             .attr("d", line)
-            .style("fill", colours[i]);
+            .style("stroke", colours[i])
+            ;
 
         chartObject.selectAll("dot")
             .data(dataIn)

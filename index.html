@@ -19,7 +19,7 @@
         }
         
         #line,
-        #line2 {
+        #line2, #regionsLine {
             height: 500px;
             width: 500px;
         }
@@ -42,9 +42,113 @@
     <div id="bar2"></div>
     <div id="line"></div>
     <div id="line2"></div>
+    <div id="regionsLine"></div>
 
 </body>
 <script>
+let regionData = [{
+    //region : East Midlands
+    year : 2010,
+    EastMidlands : 1413494,
+    Eastern : 1440686,
+    London : 1249479,
+    NorthEast : 1088740,
+    NorthWest : 2468992,
+    SouthEast : 1805315,
+},
+{
+    //region : East Midlands
+    year : 2011,
+    EastMidlands : 1727768,
+    Eastern : 1759545,
+    London : 1615816,
+    NorthEast : 1282565,
+    NorthWest : 2975516,
+    SouthEast : 2320763,
+},
+{
+    //region : East Midlands
+    year : 2012,
+    EastMidlands : 1729033,
+    Eastern : 1851249,
+    London : 1691792,
+    NorthEast : 1316043,
+    NorthWest : 3144360,
+    SouthEast : 2466586,
+},
+{
+    //region : East Midlands
+    year : 2013,
+    EastMidlands : 6970354,
+    Eastern : 8684639,
+    London : 11597435,
+    NorthEast : 4951224,
+    NorthWest : 12579383,
+    SouthEast : 11849828,
+},
+{
+    //region : East Midlands
+    year : 2014,
+    EastMidlands : 7139963,
+    Eastern : 8783974,
+    London : 11739312,
+    NorthEast : 4927271,
+    NorthWest : 12503986,
+    SouthEast : 12243513,
+},
+{
+    //region : East Midlands
+    year : 2015,
+    EastMidlands : 1136653,
+    Eastern : 1056606,
+    London : 981123,
+    NorthEast : 795242,
+    NorthWest : 1989939,
+    SouthEast : 1517168,
+}];
+
+var regions = InitialiseChart("regionsLine", {
+        x: 'CATEGORICAL',
+        y: 'CONTINUOUS',
+        type: 'LINE',
+        data: {
+            src: regionData,
+            numCols: ['year','EastMidlands','Eastern','London','NorthEast','NorthWest','SouthEast']
+        },
+
+        colourType: 'categories',
+        colourScheme: 'light',
+
+        xVar: 'year',
+        yVar: ['EastMidlands','Eastern','London','NorthEast','NorthWest','SouthEast'],
+        labels: {
+            title: 'Regional Expense Data',
+            xaxis: 'Year',
+            yaxis: 'Money (£)'
+        }
+    });
+    regions();
+
+
+    d3.csv("https://raw.githubusercontent.com/cheekynomics/expensotron9000-data/master/ExpensesByRegion.csv", function(data){
+        let regionalData = {"year" : [],
+                            "region" : [],
+                        "total" : []};
+        
+        var nested = d3.nest()
+            .key(function(d) { return d.Region; }) 
+            .key(function(d) { return d.Year; }) 
+            .rollup(function(values) {
+                return d3.sum(values, function(d) { return d.Paid; });
+            })
+            .map(data)
+
+        console.log(nested);
+
+        
+
+    })
+
     months = [{
         Month: 'Jan',
         Amount: 50
