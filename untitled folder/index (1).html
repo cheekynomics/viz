@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Chart Playground</title>
+    <script src="https://d3js.org/d3.v4.min.js" type="text/javascript"></script>
+    <script src="chartFactory.js" type="text/javascript"></script>
+
+    <style>
+        #bar {
+            height: 500px;
+            width: 600px;
+        }
+        
+        #bar2 {
+            height: 500px;
+            width: 500px;
+        }
+        #line, #line2 {
+            height: 500px;
+            width: 500px;
+        }
+        .line{
+          fill:none;
+          stroke:#333;
+          stroke-width:1.5px;
+        }
+        
+        .text {
+            background-color: black;
+        }
+        
+        .chart{
+          border: 1px solid black;
+          height: 800px;
+          width: 1000px;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div id="chart"></div>
+    
+
+</body>
+
+<script>
+
+  let globalData = null;
+  let w = 1000, h = 800;
+  let margins = {l : 100,
+                  r : 25,
+                  t : 25,
+                  b : 100};
+                  
+
+  let chart = d3.select("body").append("svg")
+                    .attr("height", h)
+                    .attr("width", w)
+                .append("g")
+                    .attr("transform", `translate(${margins.t},${margins.l})`)
+                    ;
+            
+  let xScale = d3.scaleBand().range([ w, 0]).padding(0.3);
+  let xInScale = d3.scaleBand().range([0, xScale.bandwidth()]);
+  let y = d3.scaleLinear().rangeRound([0, h]);
+            
+  d3.csv("ExpensesByRegion.csv", function(data){
+    
+    var nested = d3.nest()
+            .key(function(d) { return d.Region; })
+            .key(function(d) { return d.Year; })
+            .rollup(function(values) {
+                return d3.sum(values, function(d) { return d.Paid; });
+            })
+            .map(data)
+        console.log(nested);
+        
+    let store = [],
+        regions = [],
+        years = [],
+        store2 = [];
+        
+    for (let k in nested.keys()){
+      if (regions.indexOf(nested.keys()[k]) === -1){
+          regions.push(nested.keys()[k]);
+      }
+      let key = "$" + nested.keys()[k];
+      let region = nested[key];
+      for (let j in region.keys()){
+          if (years.indexOf(region.keys()[j]) === -1){
+              years.push(region.keys()[j]);
+          }
+        let year = "$" + region.keys()[j];
+        let value = region[year];
+        store.push({region : key.substring(1, key.length),
+                    year : year.substring(1, year.length),
+                    paid : value});
+        };
+      };
+    for (let r in regions){
+        let holdingDict = {region : regions[r]};
+        for (let y in years){
+            holdingDict[years[y]] = store.filter(function(st){return st.region === regions[r] && st.year === years[y]})[0].paid;
+        };
+        console.log(holdingDict);
+        store2.push(holdingDict);
+    };
+      
+    let max = d3.max(store, function(d){return d.paid;});
+    let min = d3.min(store, function(d){return d.paid;});
+    
+    y.domain([max, 0]);
+    xScale.domain(regions);
+    xInScale.domain(years);
+    
+    chart.append("g")
+        .attr("class", "axis xaxis")
+        .attr("transform", `translate(${margins.l},${h - margins.t - margins.b})`)
+        .call(d3.axisBottom(xScale));
+        
+    chart.append("g")
+        .attr("class", "axis yaxis")
+        .attr("transform", `translate(${margins.l}, ${-(margins.b + margins.t)})`)
+        .call(d3.axisLeft(y));
+        
+    let region = chart.selectAll(".year")
+        .data(store2)
+      .enter().append("g")
+        .attr("class", "state")
+        .attr("transform", function(d) {return `translate(${xScale(d.region)}, 0)`});
+        
+    region.selectAll("rect")
+        .data(function(d) {return d.years})
+      .enter().append("rect")
+        .attr("width", xInScale.range())
+        .attr("x", function(d) {return xInScale(d.region)})
+    
+      
+        
+    
+    
+  });
+
+  
+  
+                  
+  
+  console.log(chart);
+   
+</script>
+
+</html>
