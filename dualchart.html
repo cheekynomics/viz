@@ -1,0 +1,402 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<title>D3 v4 - Group barChart</title>
+<style>
+#yearsInRegions, #regionsInYears {
+    width: 900px;
+    height: 500px;
+}
+.tick line {
+    stroke-dasharray: 2 2 ;
+    stroke: #ccc;
+}
+</style>
+</head>
+
+<body>
+<div id="yearsInRegions"></div>
+<div id="regionsInYears"></div>
+    
+<script src="//cdnjs.cloudflare.com/ajax/libs/d3/4.1.1/d3.min.js"></script>
+<script src="d3.legend.js"></script>
+<script>
+
+    let yInR = {
+                id : "#yearsInRegions",
+                width : null,
+                height : null,
+                chartWidth : null,
+                chartHeight : null,
+                margin : null,
+                svg : d3.select("#yearsInRegions").append("svg").attr("id", "yInRSVG"),
+                axisLayer : d3.select("#yInRSVG").append("g").classed("axisLayer", true),
+                chartLayer : d3.select("#yInRSVG").append("g").classed("chartLayer", true),
+                xScale : d3.scaleBand(),
+                xInScale : d3.scaleBand(),
+                yScale : d3.scaleLinear(),
+                colors : d3.scaleOrdinal().range(["rgb(242,51,135)", "rgb(108,73,75)", "rgb(237,127,97)",
+                                                    "rgb(215,5,13)", "rgb(144,45,84)", "rgb(164,62,3)"]),
+                outer : null,
+                outerText : "region",
+                inner : null,
+                innerText : "year",
+    },
+    rInY = {
+                id : "#regionsInYears",
+                width : null,
+                height : null,
+                chartWidth : null,
+                chartHeight : null,
+                margin : null,
+                svg : d3.select("#regionsInYears").append("svg").attr("id", "rInYSVG"),
+                axisLayer : d3.select("#rInYSVG").append("g").classed("axisLayer", true),
+                chartLayer : d3.select("#rInYSVG").append("g").classed("chartLayer", true),
+                xScale : d3.scaleBand(),
+                xInScale : d3.scaleBand(),
+                yScale : d3.scaleLinear(),
+                colors : d3.scaleOrdinal().range(["rgb(148,166,253)", "rgb(3,98,160)", "rgb(72,182,234)",
+                                                    "rgb(94,67,147)", "rgb(164,119,251)", "rgb(46,33,208)",
+                                                    "rgb(46,236,230)", "rgb(141,25,147)", "rgb(247,94,240)"]),
+                outer : null,
+                outerText : "year",
+                inner : null,
+                innerText : "region",
+    };
+    
+    
+    
+    
+    d3.csv("ExpensesByRegion.csv", cast, main);
+    
+    function cast(d){
+        Object.keys(d).forEach(function(key){
+            if (!isNaN(+d[key])){
+              d[key] = +d[key];
+            }
+        })
+        return d;
+    }
+    
+    function main(data){
+        let nested = d3.nest()
+            .key(function(d) { return d.Region; })
+            .key(function(d) { return d.Year; })
+            .rollup(function(values) {
+                return d3.sum(values, function(d) { return d.Paid; });
+            })
+            .map(data)
+        
+        let store = [],
+            regions = [],
+            years = [],
+            yearsInRegions = [],
+            regionsInYears = [];
+            
+        for (let k in nested.keys()){
+          if (regions.indexOf(nested.keys()[k]) === -1){
+              regions.push(nested.keys()[k]);
+          }
+          let key = "$" + nested.keys()[k];
+          let region = nested[key];
+          for (let j in region.keys()){
+              if (years.indexOf(region.keys()[j]) === -1){
+                  years.push(region.keys()[j]);
+              }
+            let year = "$" + region.keys()[j];
+            let value = region[year];
+            store.push({region : key.substring(1, key.length),
+                        year : year.substring(1, year.length),
+                        paid : value});
+            };
+          };
+        for (let r in regions){
+            let holdingDict = {region : regions[r],
+                                values: []};
+            for (let y in years){
+                holdingDict.values.push({year : years[y],
+                                        region : regions[r],
+                                        paid : store.filter(function(st){
+                                            return st.region === regions[r] && st.year === years[y]})[0].paid});
+            };
+            yearsInRegions.push(holdingDict);
+        };
+        
+        for (let y in years){
+            let holdingDict = {year : years[y],
+                                values: []};
+            for (let r in regions){
+                holdingDict.values.push({year : years[y],
+                                        region : regions[r],
+                                        paid : store.filter(function(st){
+                                            return st.region === regions[r] && st.year === years[y]})[0].paid});
+            };
+            regionsInYears.push(holdingDict);
+        };
+        
+        yInR.outer = years;
+        yInR.inner = regions;
+        
+        rInY.outer = regions;
+        rInY.inner = years;
+        
+        let max = d3.max(store, function(d){return d.paid;});
+        
+        setSize(yInR, yearsInRegions, years, max);
+        setSize(rInY, regionsInYears, years, max);
+        
+        drawAxis(yInR);
+        drawAxis(rInY);
+        
+        drawChart(yInR, yearsInRegions, years);
+        drawChart(rInY, regionsInYears, years);
+        
+        setInteractions(yInR, rInY);
+    }
+    
+    
+    function setSize(chartObject, nested, keys, yMax) {
+        chartObject.width = document.querySelector(chartObject.id).clientWidth
+        chartObject.height = document.querySelector(chartObject.id).clientHeight
+    
+        chartObject.margin = {top:0, left:100, bottom:40, right:0 }
+        
+        
+        chartObject.chartWidth = chartObject.width - (chartObject.margin.left+chartObject.margin.right)
+        chartObject.chartHeight = chartObject.height - (chartObject.margin.top+chartObject.margin.bottom)
+        
+        chartObject.svg.attr("width", chartObject.width).attr("height", chartObject.height)
+        
+        chartObject.axisLayer.attr("width", chartObject.width).attr("height", chartObject.height)
+        
+        chartObject.chartLayer
+            .attr("width", chartObject.chartWidth)
+            .attr("height", chartObject.chartHeight)
+            .attr("transform", "translate("+[chartObject.margin.left, chartObject.margin.top]+")")
+            
+        
+                
+        chartObject.xScale.domain(nested.map(function(d) {return d[chartObject.outerText] }))
+            .range([0, chartObject.chartWidth]).paddingInner(0.1)
+
+        chartObject.xInScale.domain(chartObject.outer).range([0, chartObject.xScale.bandwidth()])
+        
+        chartObject.yScale.domain([0, yMax]).range([chartObject.chartHeight, 0])
+
+            
+    };
+    
+    
+    function drawChart(chartObject, nested, keys) {
+        let t = d3.transition()
+            .duration(1000)
+            .ease(d3.easeLinear)
+
+        let outer = chartObject.chartLayer.selectAll(".outer")
+            .data(nested)
+            
+        let inner = outer.enter().append("g").attr("class", chartObject.outerText)
+        
+
+        outer.merge(inner)
+            .attr("transform", function(d) { return "translate(" + [chartObject.xScale(d[chartObject.outerText]), 0] + ")"; });
+
+        
+        let bar = inner.selectAll(".bar")
+            .data(function(d){ return d.values })
+
+        let newBar = bar.enter().append("rect").attr("class", "bar")
+
+                        
+        bar.merge(newBar)
+            .attr("width", chartObject.xInScale.bandwidth())
+            .attr("height", 0)
+            .attr("fill", function(d) { return chartObject.colors(d[chartObject.innerText]); })
+            .attr("opacity", 0.5)
+            .attr("class", function(d) { return `_${d[chartObject.innerText].replace(/\s/g,'').replace("&", "")} _${d[chartObject.outerText].replace(/\s/g,'').replace("&", "")}`;})
+            .attr("transform", function(d) {return "translate(" + [chartObject.xInScale(d[chartObject.innerText]), chartObject.chartHeight] + ")" })
+            .attr("data-legend", function(d){return `_${d[chartObject.innerText].replace(/\s/g,'').replace("&", "")}`});
+
+        
+        
+       bar.merge(newBar).transition(t)
+            .attr("height", function(d) { return chartObject.chartHeight - chartObject.yScale(d.paid); })
+            .attr("transform", function(d) { return "translate(" + [chartObject.xInScale(d[chartObject.innerText]), chartObject.yScale(d.paid)] + ")" });
+            
+        legendY = d3.scaleBand().domain(chartObject.outer).range([10, 130]);
+        
+        console.log(legendY.range());
+        
+        legend = chartObject.chartLayer.append("g")
+            .style("transform", "translate(50, 30")
+            .attr("class", "legend");
+            
+        legend.selectAll(".box")
+            .data(chartObject.outer)
+          .enter().append("rect")
+            .attr("width", 8)
+            .attr("height", 8)
+            .attr("opacity", 0.6)
+            .attr("class", function(d){return `legend _${d.replace(/\s/g,'').replace("&", "")}`})
+            .attr("fill", function(d) { return chartObject.colors(d); })
+            .attr("transform",function(d){return `translate(20,${legendY(d)})`})
+            .style("font-size","12px")
+            
+        legend.selectAll("text")
+            .data(chartObject.outer)
+          .enter().append("text")
+            .attr("transform", function(d){return `translate(30,${legendY(d)})`})
+            .text(function(d){return d;})
+            .attr("text-anchor", "left")
+            .attr("dy", "0.5em")
+            .attr("class", function(d){return `legend-text _${d.replace(/\s/g,'').replace("&", "")}`})
+            .attr("font-weight", "300")
+            ;
+            
+            
+      
+        
+        
+    }
+    
+    function setInteractions(chart1, chart2){
+        chart1.outer.forEach(function(e, i){
+            d3.select(chart1.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
+                .on("mouseover", function(){
+                    d3.select(chart1.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
+                        .attr("opacity", 1)
+                        ;
+                    d3.select(chart2.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
+                        .attr("opacity", 1)
+                        ;
+                        
+                    let innerClass = this.className.baseVal.split(" ")[0],
+                        outerClass = this.className.baseVal.split(" ")[1];
+                        
+                    d3.select(chart1.id).selectAll(`.legend.${innerClass}`)
+                        .attr("opacity", 1)
+                        ;
+                    d3.select(chart1.id).selectAll(`.legend-text.${innerClass}`)
+                        .attr("font-weight", 700)
+                        ;
+                    d3.select(chart2.id).selectAll(`.legend.${outerClass}`)
+                        .attr("opacity", 1)
+                        ;
+                    d3.select(chart2.id).selectAll(`.legend-text.${outerClass}`)
+                        .attr("font-weight", 700)
+                        ;
+                })
+                .on("mouseout", function(){
+                    d3.select(chart1.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
+                        .attr("opacity", 0.5)
+                        ;
+                    d3.select(chart2.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
+                        .attr("opacity", 0.5)
+                        ;
+                    d3.select(chart2.id).selectAll(`.legend._${e.replace(/\s/g,'').replace("&", "")}`)
+                        .attr("opacity", 0.5)
+                        
+                    let innerClass = this.className.baseVal.split(" ")[0],
+                        outerClass = this.className.baseVal.split(" ")[1];
+                        
+                    d3.select(chart1.id).selectAll(`.legend.${innerClass}`)
+                        .attr("opacity", 0.5)
+                        ;
+                    d3.select(chart1.id).selectAll(`.legend-text.${innerClass}`)
+                        .attr("font-weight", 350)
+                        ;
+                    d3.select(chart2.id).selectAll(`.legend.${outerClass}`)
+                        .attr("opacity", 0.5)
+                        ;
+                    d3.select(chart2.id).selectAll(`.legend-text.${outerClass}`)
+                        .attr("font-weight", 350)
+                        ;
+                        
+                })
+            });
+        
+        
+            
+        chart2.outer.forEach(function(e, i){
+            d3.select(chart2.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
+                .on("mouseover", function(){
+                    d3.select(chart1.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
+                        .attr("opacity", 1)
+                        ;
+                    d3.select(chart2.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
+                        .attr("opacity", 1)
+                        ;
+                    
+                    let innerClass = this.className.baseVal.split(" ")[0],
+                        outerClass = this.className.baseVal.split(" ")[1];
+                        
+                                        console.log(innerClass, outerClass);
+                        
+                    d3.select(chart1.id).selectAll(`.legend.${outerClass}`)
+                        .attr("opacity", 1)
+                        ;
+                    d3.select(chart1.id).selectAll(`.legend-text.${outerClass}`)
+                        .attr("font-weight", 700)
+                        ;
+                    d3.select(chart2.id).selectAll(`.legend.${innerClass}`)
+                        .attr("opacity", 1)
+                        ;
+                    d3.select(chart2.id).selectAll(`.legend-text.${innerClass}`)
+                        .attr("font-weight", 700)
+                        ;
+                })
+                .on("mouseout", function(){
+                    d3.select(chart1.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
+                        .attr("opacity", 0.5)
+                        ;
+                    d3.select(chart2.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
+                        .attr("opacity", 0.5)
+                        ;
+                        
+                    let innerClass = this.className.baseVal.split(" ")[0],
+                        outerClass = this.className.baseVal.split(" ")[1];
+                        
+                    d3.select(chart1.id).selectAll(`.legend.${outerClass}`)
+                        .attr("opacity", 0.5)
+                        ;
+                    d3.select(chart1.id).selectAll(`.legend-text.${outerClass}`)
+                        .attr("font-weight", 350)
+                        ;
+                    d3.select(chart2.id).selectAll(`.legend.${innerClass}`)
+                        .attr("opacity", 0.5)
+                        ;
+                    d3.select(chart2.id).selectAll(`.legend-text.${innerClass}`)
+                        .attr("font-weight", 350)
+                        ;
+                        
+                })
+            })
+            
+    }
+    
+    
+    function drawAxis(chartObject){
+        let yAxis = d3.axisLeft(chartObject.yScale)
+            .tickSizeInner(-chartObject.chartWidth)
+        
+        chartObject.axisLayer.append("g")
+            .attr("transform", "translate("+[chartObject.margin.left, chartObject.margin.top]+")")
+            .attr("class", "axis y")
+            .call(yAxis);
+            
+        let xAxis = d3.axisBottom(chartObject.xScale)
+    
+        chartObject.axisLayer.append("g")
+            .attr("class", "axis x")
+            .attr("transform", "translate("+[chartObject.margin.left, chartObject.chartHeight]+")")
+            .call(xAxis);
+        
+    }
+    
+//}());
+</script>
+</body>
+</html>
