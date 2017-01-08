@@ -1,161 +1,334 @@
+
 <!DOCTYPE html>
 <html>
-
 <head>
-    <title>Chart Playground</title>
-    <script src="https://d3js.org/d3.v4.min.js" type="text/javascript"></script>
-    <script src="chartFactory.js" type="text/javascript"></script>
-
-    <style>
-        
-        .line{
-          fill:none;
-          stroke:#333;
-          stroke-width:1.5px;
-        }
-        
-        .text {
-            background-color: black;
-        }
-        
-        .chart{
-          border: 1px solid black;
-          height: 600px;
-          width: 1000px;
-        }
-    </style>
-
+<meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<title>D3 v4 - Group barChart</title>
+<style>
+#yearsInRegions, #regionsInYears {
+    width: 900px;
+    height: 500px;
+}
+.axis.y .tick line {
+    stroke-dasharray: 2 2 ;
+    stroke: #ccc;
+}
+</style>
 </head>
 
 <body>
-    <div id="chart"></div>
+<div id="yearsInRegions"></div>
+<div id="regionsInYears"></div>
     
-
-</body>
-
+<!--<script src="//cdnjs.cloudflare.com/ajax/libs/d3/4.1.1/d3.min.js"></script>-->
+<script src="d3.v4.min.js"></script>
+<!--<script src="d3.legend.js"></script>-->
 <script>
 
-
-
-dataset = [
-    {label:"Men", "Not Satisfied":20, "Not Much Satisfied":10, "Satisfied": 50, "Very Satisfied":20},
-    {label:"Women", "Not Satisfied":15, "Not Much Satisfied":30, "Satisfied":40, "Very Satisfied":15}
-];
-
-
-var options = d3.keys(dataset[0]).filter(function(key) { return key !== "label"; });
-
-dataset.forEach(function(d) {
-    d.valores = options.map(function(name) { return {name: name, value: +d[name]}; });
-});
-
-console.log(dataset);
-
-
-
-  let globalData = null;
-  let w = 1000, h = 600;
-  let margins = {l : 100,
-                  r : 25,
-                  t : 25,
-                  b : 100};
-                  
-
-  let chart = d3.select("body").append("svg")
-                    .attr("height", h)
-                    .attr("width", w)
-                .append("g")
-                    .attr("transform", `translate(${margins.t},${margins.l})`)
-                    ;
-            
-  let xScale = d3.scaleOrdinal().range([ w, 0]).padding(0.3);
-  let xInScale = d3.scaleOrdinal().range([0, xScale.bandwidth()]);
-  let y = d3.scaleLinear().rangeRound([0, h]);
-            
-  d3.csv("ExpensesByRegion.csv", function(data){
+    let yInR = {
+                id : "#yearsInRegions",
+                width : null,
+                height : null,
+                chartWidth : null,
+                chartHeight : null,
+                margin : {top:20, left:100, bottom:70, right:20 },
+                svg : d3.select("#yearsInRegions").append("svg").attr("id", "yInRSVG"),
+                axisLayer : d3.select("#yInRSVG").append("g").classed("axisLayer", true),
+                chartLayer : d3.select("#yInRSVG").append("g").classed("chartLayer", true),
+                xScale : d3.scaleBand(),
+                xInScale : d3.scaleBand(),
+                yScale : d3.scaleLinear(),
+                colors : d3.scaleOrdinal().range(["rgb(242,51,135)", "rgb(108,73,75)", "rgb(237,127,97)",
+                                                    "rgb(215,5,13)", "rgb(144,45,84)", "rgb(164,62,3)"]),
+                outer : null,
+                outerText : "region",
+                inner : null,
+                innerText : "year",
+    };  
     
-    var nested = d3.nest()
+    
+    
+    d3.csv("ExpensesByRegion.csv", cast, main);
+    
+    function cast(d){
+        // casts each of the numeric columns to number
+        Object.keys(d).forEach(function(key){
+            if (!isNaN(+d[key])){
+              d[key] = +d[key];
+            }
+        })
+        return d;
+    }
+    
+    function main(data){
+        // gets the data into the right shape for plotting in a grouped bar chart
+
+        //sums the values for region and year within the giant csv
+        let nested = d3.nest()
             .key(function(d) { return d.Region; })
             .key(function(d) { return d.Year; })
             .rollup(function(values) {
                 return d3.sum(values, function(d) { return d.Paid; });
             })
             .map(data)
-        console.log(nested);
-        
-    let store = [],
-        regions = [],
-        years = [],
-        store2 = [];
-        
-    for (let k in nested.keys()){
-      if (regions.indexOf(nested.keys()[k]) === -1){
-          regions.push(nested.keys()[k]);
-      }
-      let key = "$" + nested.keys()[k];
-      let region = nested[key];
-      for (let j in region.keys()){
-          if (years.indexOf(region.keys()[j]) === -1){
-              years.push(region.keys()[j]);
-          }
-        let year = "$" + region.keys()[j];
-        let value = region[year];
-        store.push({region : key.substring(1, key.length),
-                    year : year.substring(1, year.length),
-                    paid : value});
+
+        let store = [],
+            regions = [],
+            years = [],
+            yearsInRegions = [];
+            
+        for (let k in nested.keys()){
+
+            // creates the list of unique regions
+            if (regions.indexOf(nested.keys()[k]) === -1){
+                  regions.push(nested.keys()[k]);
+            }
+            let key = "$" + nested.keys()[k]; // for some reason, the key names are prefixed with a dollar in the nested data
+            let region = nested[key];
+            //creates a list of the unique years
+            for (let j in region.keys()){
+                if (years.indexOf(region.keys()[j]) === -1){
+                      years.push(region.keys()[j]);
+                }
+                let year = "$" + region.keys()[j];
+                let value = region[year];
+                //adds the region/year values to a storing dict
+                store.push({region : key.substring(1, key.length),
+                        year : year.substring(1, year.length),
+                        paid : value});
+            };
+          };
+
+        // this bit nests the values for each year within the region object
+        for (let r in regions){
+            let holdingDict = {region : regions[r],
+                                values: []};
+            for (let y in years){
+                holdingDict.values.push({year : years[y],
+                                        region : regions[r],
+                                        // filters the exact intersection of region and year to provide the correct value
+                                        paid : store.filter(function(st){
+                                            return st.region === regions[r] && st.year === years[y]})[0].paid});
+            };
+            yearsInRegions.push(holdingDict);
         };
-      };
-    for (let r in regions){
-        let holdingDict = {region : regions[r],
-                            values: []};
-        for (let y in years){
-            holdingDict.values.push({year : years[y],
-                                    paid : store.filter(function(st){
-                                        return st.region === regions[r] && st.year === years[y]})[0].paid});
-        };
-        store2.push(holdingDict);
+        // populates a list of regions and years for the inner and outer groupings in the bar chart
+        yInR.outer = years;
+        yInR.inner = regions;
+        
+        // creates a maximum to the ceiling million
+        let max = Math.ceil(d3.max(store, function(d){return d.paid;})/1000000) * 1000000;
+        
+        // adds the chartLayer and sets the dimensions for the chart
+        setSize(yInR, yearsInRegions, years, max);
+        
+        drawAxis(yInR);
+        
+        drawChart(yInR, yearsInRegions, years);
+        
+        setInteractions(yInR);
+    }
+    
+    
+    function setSize(chartObject, nested, keys, yMax) {
+        //setting the dimensions of the whole charting area
+        chartObject.width = document.querySelector(chartObject.id).clientWidth;
+        chartObject.height = document.querySelector(chartObject.id).clientHeight;
+        // setting the dimensions of the plotting area only
+        chartObject.chartWidth = chartObject.width - (chartObject.margin.left+chartObject.margin.right)
+        chartObject.chartHeight = chartObject.height - (chartObject.margin.top+chartObject.margin.bottom)
+        
+        //applying these dimesions to the svg and the axis Layer
+        chartObject.svg.attr("width", chartObject.width).attr("height", chartObject.height)
+        chartObject.axisLayer.attr("width", chartObject.width).attr("height", chartObject.height)
+        
+        // applying the plotting area dimensions to the plotting area
+        chartObject.chartLayer
+            .attr("width", chartObject.chartWidth)
+            .attr("height", chartObject.chartHeight)
+            .attr("transform", "translate("+[chartObject.margin.left, chartObject.margin.top]+")")
+
+        // setting the domains and ranges for the axis scales     
+        chartObject.xScale.domain(nested.map(function(d) {return d[chartObject.outerText] }))
+            .range([0, chartObject.chartWidth])
+            .paddingInner(0.1)
+
+        chartObject.xInScale.domain(chartObject.outer)
+            .range([0, chartObject.xScale.bandwidth()])
+        
+        chartObject.yScale.domain([0, yMax])
+            .range([chartObject.chartHeight, 0])
+
+            
     };
-      
-    let max = d3.max(store, function(d){return d.paid;});
-    let min = d3.min(store, function(d){return d.paid;});
     
-    y.domain([max, 0]);
-    xScale.domain(regions);
-    xInScale.domain(years);
     
-    chart.append("g")
-        .attr("class", "axis xaxis")
-        .attr("transform", `translate(${margins.l},${h - margins.t - margins.b})`)
-        .call(d3.axisBottom(xScale));
-        
-    chart.append("g")
-        .attr("class", "axis yaxis")
-        .attr("transform", `translate(${margins.l}, ${-(margins.b + margins.t)})`)
-        .call(d3.axisLeft(y));
-        
-console.log(store2);
+    function drawChart(chartObject, nested, keys) {
+        //setting up the transition
+        let t = d3.transition()
+            .duration(1000)
+            .ease(d3.easeLinear)
 
-    let region = chart.selectAll("region")
-        .data(store2)
-      .enter().append("g")
-        .attr("class", function(d){return d.region})
-        .attr("transform", function(d) {return `translate(${margins.l + xScale(d.region)}, 0)`});
+        // binding the data to the outer groups
+        let outer = chartObject.chartLayer.selectAll(".outer")
+            .data(nested)
+            
+        // initialising the inner groups
+        let inner = outer.enter().append("g").attr("class", chartObject.outerText)
         
-    region.selectAll("rect")
-        .data(function(d) {return d.values;})
-      .enter().append("rect")
-        .attr("width", xInScale.round())
-        .attr("x", function(d) {return xInScale(d.year)})
-        .attr("y", 0)
-        .attr("height", function(d) {return d.paid});
-    
-      
-        
-    
-    
-  });
+        // doing the enter and update for the outer groups
+        outer.merge(inner)
+            .attr("transform", function(d) { return "translate(" + [chartObject.xScale(d[chartObject.outerText]), 0] + ")"; });
 
+        // binding the data to the inner groups
+        let bar = inner.selectAll(".bar")
+            .data(function(d){ return d.values })
+
+        // creating the bars
+        let newBar = bar.enter().append("rect").attr("class", "bar")                
+        bar.merge(newBar)
+            .attr("width", chartObject.xInScale.bandwidth())
+            .attr("height", 0)
+            .attr("fill", function(d) { return chartObject.colors(d[chartObject.innerText]); })
+            .attr("opacity", 0.8)
+            .attr("class", function(d) { return `_${d[chartObject.innerText].replace(/\s/g,'').replace("&", "")} _${d[chartObject.outerText].replace(/\s/g,'').replace("&", "")}`;})
+            .attr("transform", function(d) {return "translate(" + [chartObject.xInScale(d[chartObject.innerText]), chartObject.chartHeight] + ")" });
+
+        
+       // transitioning the datamerge 
+       bar.merge(newBar).transition(t)
+            .attr("height", function(d) { return chartObject.chartHeight - chartObject.yScale(d.paid); })
+            .attr("transform", function(d) { return "translate(" + [chartObject.xInScale(d[chartObject.innerText]), chartObject.yScale(d.paid)] + ")" });
+            
+
+        // creating the legend scale
+        legendY = d3.scaleBand().domain(chartObject.outer).range([10, 130]);
+        
+        // creating the legend container  
+        legend = chartObject.chartLayer.append("g")
+            .style("transform", "translate(50, 30")
+            .attr("class", "legend");
+            
+        // adding the boxes to the legend, matching the classes to the bars so we can highlight both at once
+        legend.selectAll(".box")
+            .data(chartObject.outer)
+          .enter().append("rect")
+            .attr("width", 8)
+            .attr("height", 8)
+            .attr("opacity", 0.8)
+            .attr("class", function(d){return `legend _${d.replace(/\s/g,'').replace("&", "")}`})
+            .attr("fill", function(d) { return chartObject.colors(d); })
+            .attr("transform",function(d){return `translate(20,${legendY(d)})`})
+            .style("font-size","12px")
+            
+        // adding the legend labels  
+        legend.selectAll("text")
+            .data(chartObject.outer)
+          .enter().append("text")
+            .attr("transform", function(d){return `translate(32,${legendY(d)})`})
+            .text(function(d){return d;})
+            .attr("text-anchor", "left")
+            .attr("dy", "0.5em")
+            .attr("class", function(d){return `legend-text _${d.replace(/\s/g,'').replace("&", "")}`})
+            .attr("font-weight", "300")
+            ;
+            
+
+    }
+    
+    function setInteractions(chart1){
+        // creates the hover interactions for the chart. Some of this might be redundant because I used it from a more complex version
+        chart1.outer.forEach(function(e, i){
+            d3.select(chart1.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
+                .on("mouseover", function(){
+                    let innerClass = this.className.baseVal.split(" ")[0];
+                    d3.select(chart1.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
+                        .attr("opacity", 1);
+                    d3.select(chart1.id).selectAll(`.legend.${innerClass}`)
+                        .attr("opacity", 1);
+                    d3.select(chart1.id).selectAll(`.legend-text.${innerClass}`)
+                        .attr("font-weight", 700);
+                })
+                .on("mouseout", function(){
+                    let innerClass = this.className.baseVal.split(" ")[0];
+                    d3.select(chart1.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
+                        .attr("opacity", 0.8);
+                    d3.select(chart1.id).selectAll(`.legend.${innerClass}`)
+                        .attr("opacity", 0.8);
+                    d3.select(chart1.id).selectAll(`.legend-text.${innerClass}`)
+                        .attr("font-weight", 300);
+                })
+            });
+    }
+    
+    
+    function drawAxis(chartObject){
+        // creates the individual axes
+        let yAxis = d3.axisLeft(chartObject.yScale)
+            .tickSizeInner(-chartObject.chartWidth)
+        
+        chartObject.axisLayer.append("g")
+            .attr("transform", "translate("+[chartObject.margin.left, chartObject.margin.top]+")")
+            .attr("class", "axis y")
+            .call(yAxis
+                .tickFormat(d3.formatPrefix(".0", 1e6)));
+
+        // prepends a £ sign the the from the each tick label
+        var ticks = d3.selectAll(".axis.y > .tick > text").nodes();
+        ticks.forEach(function(t){
+            t.innerHTML = `£${t.innerHTML}`
+        });
+
+        chartObject.axisLayer.append("text")
+            .text("Total value of expense claims")
+            .attr("x", 0 -(chartObject.chartHeight / 2))
+            .attr("y", chartObject.margin.left /2 )
+            .attr("text-anchor", "middle")
+            .attr("transform", "rotate(-90)");
+            
+        let xAxis = d3.axisBottom(chartObject.xScale)
+    
+        chartObject.axisLayer.append("g")
+            .attr("class", "axis x")
+            .attr("transform", "translate("+[chartObject.margin.left, chartObject.chartHeight + chartObject.margin.top]+")")
+            .call(xAxis)
+          .selectAll(".tick text")
+            .call(wrap, chartObject.xScale.bandwidth());
+
+        chartObject.axisLayer.append("text")
+            .text("Region")
+            .attr("transform",
+                `translate(${(chartObject.width + chartObject.margin.left)/2}, ${chartObject.chartHeight + chartObject.margin.top + 50})`)
+            .style("text-anchor", "middle")
+        
+    }
+    
+    function wrap(text, width) {
+        // used to wrap 'Yorkshire and the Humber' over two lines
+        text.each(function() {
+            var text = d3.select(this),
+                words = text.text().split(/\s+/).reverse(),
+                word,
+                line = [],
+                lineNumber = 0,
+                lineHeight = 1.1, // ems
+                y = text.attr("y"),
+                dy = parseFloat(text.attr("dy")),
+                tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
+            while (word = words.pop()) {
+                line.push(word);
+                tspan.text(line.join(" "));
+                if (tspan.node().getComputedTextLength() > width) {
+                    line.pop();
+                    tspan.text(line.join(" "));
+                    line = [word];
+                    tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+                    }
+                }
+        })
+    }
 
 </script>
-
+</body>
 </html>
