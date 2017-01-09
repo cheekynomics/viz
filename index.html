@@ -4,6 +4,7 @@
 <head>
 <meta charset="utf-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<link href="https://fonts.googleapis.com/css?family=Noto+Serif|Oswald" rel="stylesheet">
 <title>D3 v4 - Group barChart</title>
 <style>
 #yearsInRegions, #regionsInYears {
@@ -116,6 +117,7 @@
         // populates a list of regions and years for the inner and outer groupings in the bar chart
         yInR.outer = years;
         yInR.inner = regions;
+        yInR.colors.domain(years.map(function(y){return `_${y}`}));
         
         // creates a maximum to the ceiling million
         let max = Math.ceil(d3.max(store, function(d){return d.paid;})/1000000) * 1000000;
@@ -153,6 +155,7 @@
         chartObject.xScale.domain(nested.map(function(d) {return d[chartObject.outerText] }))
             .range([0, chartObject.chartWidth])
             .paddingInner(0.1)
+            .paddingOuter(0.01);
 
         chartObject.xInScale.domain(chartObject.outer)
             .range([0, chartObject.xScale.bandwidth()])
@@ -190,9 +193,9 @@
         bar.merge(newBar)
             .attr("width", chartObject.xInScale.bandwidth())
             .attr("height", 0)
-            .attr("fill", function(d) { return chartObject.colors(d[chartObject.innerText]); })
+            .attr("fill", function(d) {return chartObject.colors(d[chartObject.innerText]); })
             .attr("opacity", 0.8)
-            .attr("class", function(d) { return `_${d[chartObject.innerText].replace(/\s/g,'').replace("&", "")} _${d[chartObject.outerText].replace(/\s/g,'').replace("&", "")}`;})
+            .attr("class", function(d) { return `bar _${d[chartObject.innerText].replace(/\s/g,'').replace("&", "")} _${d[chartObject.outerText].replace(/\s/g,'').replace("&", "")}`;})
             .attr("transform", function(d) {return "translate(" + [chartObject.xInScale(d[chartObject.innerText]), chartObject.chartHeight] + ")" });
 
         
@@ -216,11 +219,9 @@
           .enter().append("rect")
             .attr("width", 8)
             .attr("height", 8)
-            .attr("opacity", 0.8)
-            .attr("class", function(d){return `legend _${d.replace(/\s/g,'').replace("&", "")}`})
+            .attr("class", function(d){return `legend-box _${d.replace(/\s/g,'').replace("&", "")}`})
             .attr("fill", function(d) { return chartObject.colors(d); })
-            .attr("transform",function(d){return `translate(20,${legendY(d)})`})
-            .style("font-size","12px")
+            .attr("transform",function(d){return `translate(20,${legendY(d)})`});
             
         // adding the legend labels  
         legend.selectAll("text")
@@ -229,35 +230,75 @@
             .attr("transform", function(d){return `translate(32,${legendY(d)})`})
             .text(function(d){return d;})
             .attr("text-anchor", "left")
-            .attr("dy", "0.5em")
+            .attr("dy", "0.7em")
             .attr("class", function(d){return `legend-text _${d.replace(/\s/g,'').replace("&", "")}`})
-            .attr("font-weight", "300")
+            .style("font-family", "Oswald")
+            .style("font-size","12px")
             ;
             
 
     }
     
     function setInteractions(chart1){
+        // SET OTHER BARS TO GREY WHEN MOUSEOVER
         // creates the hover interactions for the chart. Some of this might be redundant because I used it from a more complex version
         chart1.outer.forEach(function(e, i){
-            d3.select(chart1.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
+            let className = e.replace(/\s/g,'').replace("&", "");
+            d3.select(chart1.id).selectAll(`._${className}`)
                 .on("mouseover", function(){
-                    let innerClass = this.className.baseVal.split(" ")[0];
-                    d3.select(chart1.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
-                        .attr("opacity", 1);
-                    d3.select(chart1.id).selectAll(`.legend.${innerClass}`)
-                        .attr("opacity", 1);
-                    d3.select(chart1.id).selectAll(`.legend-text.${innerClass}`)
-                        .attr("font-weight", 700);
+                    let innerClass = this.className.baseVal.split(" ")[1];
+
+                    d3.select(chart1.id).selectAll(".bar")
+                        .attr("fill", function(){
+                            let currentClassName = this.className.baseVal.split(" ")[1];
+                            
+                            if (currentClassName === innerClass){
+                                return chart1.colors(innerClass);
+                            }
+                            else{
+                                return "#d3d3d3";
+                            }
+                        });
+
+
+                    d3.select(chart1.id).selectAll(`.legend-text`)
+                        .style("fill", function(){
+                            let currentClassName = this.className.baseVal.split(" ")[1];
+                            if (currentClassName === innerClass){
+                                console.log(currentClassName, innerClass)
+                                return "black";
+                            }
+                            else{
+                                return "#d3d3d3";
+                            }
+                        });
+                    d3.select(chart1.id).selectAll(`.legend-box`)
+                        .style("fill", function(){
+                            let currentClassName = this.className.baseVal.split(" ")[1];
+                            
+                            if (currentClassName === innerClass){
+                                return chart1.colors(innerClass);
+                            }
+                            else{
+                                return "#d3d3d3";
+                            }
+                        });
                 })
                 .on("mouseout", function(){
-                    let innerClass = this.className.baseVal.split(" ")[0];
-                    d3.select(chart1.id).selectAll(`._${e.replace(/\s/g,'').replace("&", "")}`)
-                        .attr("opacity", 0.8);
-                    d3.select(chart1.id).selectAll(`.legend.${innerClass}`)
-                        .attr("opacity", 0.8);
-                    d3.select(chart1.id).selectAll(`.legend-text.${innerClass}`)
-                        .attr("font-weight", 300);
+                    let innerClass = this.className.baseVal.split(" ")[1];
+                    d3.select(chart1.id).selectAll(".bar")
+                        .attr("fill", function(){
+                                let currentClassName = this.className.baseVal.split(" ")[1];
+                                return chart1.colors(currentClassName);
+                            });
+                    d3.select(chart1.id).selectAll(`.legend-text`)
+                        .style("fill", "black");
+
+                    d3.select(chart1.id).selectAll(".legend-box")
+                        .style("fill", function(){
+                                let currentClassName = this.className.baseVal.split(" ")[1];
+                                return chart1.colors(currentClassName);
+                            });
                 })
             });
     }
@@ -275,17 +316,23 @@
                 .tickFormat(d3.formatPrefix(".0", 1e6)));
 
         // prepends a £ sign the the from the each tick label
-        var ticks = d3.selectAll(".axis.y > .tick > text").nodes();
-        ticks.forEach(function(t){
+        var yTicks = d3.selectAll(".axis.y > .tick > text");
+        yTicks.nodes().forEach(function(t){
             t.innerHTML = `£${t.innerHTML}`
         });
+        yTicks.style("font-family", "Oswald")
+            .style("font-size","12px")
+            ;
 
         chartObject.axisLayer.append("text")
             .text("Total value of expense claims")
             .attr("x", 0 -(chartObject.chartHeight / 2))
             .attr("y", chartObject.margin.left /2 )
             .attr("text-anchor", "middle")
-            .attr("transform", "rotate(-90)");
+            .attr("transform", "rotate(-90)")
+            .style("font-family", "Oswald")
+            .style("font-size","20px")
+            ;
             
         let xAxis = d3.axisBottom(chartObject.xScale)
     
@@ -301,6 +348,14 @@
             .attr("transform",
                 `translate(${(chartObject.width + chartObject.margin.left)/2}, ${chartObject.chartHeight + chartObject.margin.top + 50})`)
             .style("text-anchor", "middle")
+            .style("font-family", "Oswald")
+            .style("font-size","20px");
+
+        
+        d3.selectAll(".axis.x > .tick > text")
+            .style("font-family", "Oswald")
+            .style("font-size","12px")
+            ;
         
     }
     
