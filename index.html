@@ -20,12 +20,15 @@
 
 <body>
 <div id="yearsInRegions"></div>
-<div id="regionsInYears"></div>
     
 <!--<script src="//cdnjs.cloudflare.com/ajax/libs/d3/4.1.1/d3.min.js"></script>-->
 <script src="d3.v4.min.js"></script>
 <!--<script src="d3.legend.js"></script>-->
 <script>
+
+//TODO
+    //- Change object constructor to be more like a chained d3 method
+    //- make react class of chart; turn the chart into a react component
 
     let yInR = {
                 id : "#yearsInRegions",
@@ -308,12 +311,12 @@
         // creates the individual axes
         let yAxis = d3.axisLeft(chartObject.yScale)
             .tickSizeInner(-chartObject.chartWidth)
+            .tickFormat(d3.formatPrefix(".0", 1e6));
         
         chartObject.axisLayer.append("g")
             .attr("transform", "translate("+[chartObject.margin.left, chartObject.margin.top]+")")
             .attr("class", "axis y")
-            .call(yAxis
-                .tickFormat(d3.formatPrefix(".0", 1e6)));
+            .call(yAxis);
 
         // prepends a £ sign the the from the each tick label
         var yTicks = d3.selectAll(".axis.y > .tick > text");
@@ -359,30 +362,7 @@
         
     }
     
-    function wrap(text, width) {
-        // used to wrap 'Yorkshire and the Humber' over two lines
-        text.each(function() {
-            var text = d3.select(this),
-                words = text.text().split(/\s+/).reverse(),
-                word,
-                line = [],
-                lineNumber = 0,
-                lineHeight = 1.1, // ems
-                y = text.attr("y"),
-                dy = parseFloat(text.attr("dy")),
-                tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
-            while (word = words.pop()) {
-                line.push(word);
-                tspan.text(line.join(" "));
-                if (tspan.node().getComputedTextLength() > width) {
-                    line.pop();
-                    tspan.text(line.join(" "));
-                    line = [word];
-                    tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
-                    }
-                }
-        })
-    }
+    
 
 </script>
 </body>
