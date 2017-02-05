@@ -1,0 +1,15 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+}
+
+.mapView, .yearsInRegions{
+  height : 600px;
+  width: 900px;
+}
+
+.axis.y .tick line {
+    stroke-dasharray: 2 2 ;
+    stroke: #ccc;
+}
