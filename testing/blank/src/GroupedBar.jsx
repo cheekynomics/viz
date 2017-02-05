@@ -1,12 +1,5 @@
 import * as d3 from 'd3';
 import React, {Component} from 'react';
-import * as exp from './ExpensesByRegion.json'
-
-let ExpensesData = [];
-Object.keys(exp).forEach(function(k){
-    ExpensesData.push(exp[k]);
-})
-
 
 class GroupedBarChart extends Component{
 
@@ -36,56 +29,15 @@ class GroupedBarChart extends Component{
     }
 
     _summariseData(data){
-        data = data.filter(function(d) {return typeof d.Region !== 'undefined'});
-        let nested = d3.nest()
-            .key(function(d) { return d.Region; })
-            .key(function(d) { return d.Year; })
-            .rollup(function(values) {
-                return d3.sum(values, function(d) { return d.Paid; });
-            })
-            .map(data)
         let store = [],
             regions = [],
             years = [],
             yearsInRegions = [];
-        for (let k in nested.keys()){
+        let max = Math.ceil(d3.max(data, (d) => d3.max(d.values, (dd) => dd.paid))/1000000) * 1000000;
 
-            // creates the list of unique regions
-            if (regions.indexOf(nested.keys()[k]) === -1){
-                  regions.push(nested.keys()[k]);
-            }
-            let key = "$" + nested.keys()[k]; // for some reason, the key names are prefixed with a dollar in the nested data
-            let region = nested[key];
-            //creates a list of the unique years
-            for (let j in region.keys()){
-                if (years.indexOf(region.keys()[j]) === -1){
-                      years.push(region.keys()[j]);
-                }
-                let year = "$" + region.keys()[j];
-                let value = region[year];
-                //adds the region/year values to a storing dict
-                store.push({region : key.substring(1, key.length),
-                        year : year.substring(1, year.length),
-                        paid : value});
-            };
-          };
-        // this bit nests the values for each year within the region object
-        for (let r in regions){
-            let holdingDict = {region : regions[r],
-                                values: []};
-            for (let y in years){
-                holdingDict.values.push({"year" : years[y],
-                                        "region" : regions[r],
-                                        // filters the exact intersection of region and year to provide the correct value
-                                        "paid" : store.filter(function(st){
-                                            return st.region === regions[r] && st.year === years[y]})[0].paid});
-            };
-            yearsInRegions.push(holdingDict);
-        };
-        let max = Math.ceil(d3.max(store, function(d){return d.paid;})/1000000) * 1000000;
-        this.regions = regions;
-        this.years = years;
-        this.chartData = yearsInRegions;
+        this.regions = data.map((r) => r.region)
+        this.years = data[0].values.map((o) => o.year);
+        this.chartData = data
         this.yMax = max;
     }
 
@@ -170,7 +122,7 @@ class GroupedBarChart extends Component{
         // SET OTHER BARS TO GREY WHEN MOUSEOVER
         // creates the hover interactions for the chart. Some of this might be redundant because I used it from a more complex version
         this.years.forEach(function(e, i){
-            let className = e.replace(/\s/g,'').replace("&", "");
+            let className = `${e}`;
             svg.selectAll(`._${className}`)
                 .on("mouseover", function(){
                     let innerClass = this.className.baseVal.split(" ")[1];
@@ -246,7 +198,7 @@ class GroupedBarChart extends Component{
         this._chartLayer = this._svg.append("g").classed("chartLayer", true);
 
         // call setsize from within the componentDidMount
-        this._summariseData(ExpensesData);
+        this._summariseData(this.props.dataToChart);
 
         this.xScale = d3.scaleBand().domain(this.regions)
             .paddingInner(0.1)
@@ -291,8 +243,8 @@ class GroupedBarChart extends Component{
             .attr("height", 0)
             .attr("fill", function(d) {return colorScale(`_${d['year']}`); })
             .attr("opacity", 0.8)
-            .attr("class", function(d) { return `bar _${d['year'].replace(/\s/g,'').replace("&", "")} _${d['region'].replace(/\s/g,'').replace("&", "")}`;})
-            .attr("transform", function(d) {return "translate(" + [xInScale(d['year']), chartHeight] + ")" });
+            .attr("class", function(d) { return `bar _${d['year']}`;})
+            .attr("transform", function(d) { return "translate(" + [xInScale(d['year']), chartHeight] + ")" });
 
         bar.merge(newBar).transition(t)
             .attr("height", function(d) {  return chartHeight - yScale(d.paid); })
@@ -312,7 +264,7 @@ class GroupedBarChart extends Component{
           .enter().append("rect")
             .attr("width", 8)
             .attr("height", 8)
-            .attr("class", function(d){return `legend-box _${d.replace(/\s/g,'').replace("&", "")}`})
+            .attr("class", function(d){return `legend-box _${d}`})
             .attr("fill", function(d) { return colorScale(d); })
             .attr("transform",function(d){return `translate(20,${legendY(d)})`});
 
@@ -324,7 +276,7 @@ class GroupedBarChart extends Component{
             .text(function(d){return d;})
             .attr("text-anchor", "left")
             .attr("dy", "0.7em")
-            .attr("class", function(d){return `legend-text _${d.replace(/\s/g,'').replace("&", "")}`})
+            .attr("class", function(d){return `legend-text _${d}`})
             .style("font-family", "Oswald")
             .style("font-size","12px")
             ;

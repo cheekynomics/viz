@@ -5,13 +5,16 @@ import logo from './logo.svg';
 import './App.css';
 import * as expenses from './NestedExpenses.json';
 
-console.log(expenses);
+//TODO: Figure out proper loading
+delete expenses.default;
+let listified = [];
+Object.keys(expenses).forEach((k) => listified.push(expenses[k]));
 
 class App extends Component {
   render() {
     return (
       <div className="mapView">
-        <GroupedBarChart margin={{l : 100,
+        <GroupedBarChart dataToChart={listified} margin={{l : 100,
                                   t : 20,
                                   b : 70,
                                   r : 20}}/>
