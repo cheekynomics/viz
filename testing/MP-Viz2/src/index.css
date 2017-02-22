@@ -13,3 +13,8 @@ body {
     stroke-dasharray: 2 2 ;
     stroke: #ccc;
 }
+
+.bar {
+  stroke: #333;
+  stroke-width: 1;
+}

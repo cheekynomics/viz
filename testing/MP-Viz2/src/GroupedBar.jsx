@@ -1,19 +1,11 @@
 import * as d3 from 'd3';
 import React, {Component} from 'react';
-import * as exp from './ExpensesByRegion.json'
-
-let ExpensesData = [];
-Object.keys(exp).forEach(function(k){
-    ExpensesData.push(exp[k]);
-})
 
 
 class GroupedBarChart extends Component{
 
-
-
-    _wrap(text, width) {
-        // used to wrap 'Yorkshire and the Humber' over two lines
+    wrap(text, width) {
+        // used to wrap 'Yorkshire and the Humber' over two lines - taken from MBostock code
         text.each(function() {
             var text = d3.select(this),
                 words = text.text().split(/\s+/).reverse(),
@@ -37,203 +29,132 @@ class GroupedBarChart extends Component{
         })
     }
 
-    _summariseData(data){
-        data = data.filter(function(d) {return typeof d.Region !== 'undefined'});
-        let nested = d3.nest()
-            .key(function(d) { return d.Region; })
-            .key(function(d) { return d.Year; })
-            .rollup(function(values) {
-                return d3.sum(values, function(d) { return d.Paid; });
-            })
-            .map(data)
-        let store = [],
+    getData(data){
+        // Pre-summarised data should be passed in as a prop. This cleans it up a little as, gets the max, years and regions
+        let ExpensesData = [],
             regions = [],
-            years = [],
-            yearsInRegions = [];
-        for (let k in nested.keys()){
-
-            // creates the list of unique regions
-            if (regions.indexOf(nested.keys()[k]) === -1){
-                  regions.push(nested.keys()[k]);
+            years = [];
+            
+        Object.keys(data).forEach(function(k){
+            if (k !== 'default'){
+                ExpensesData.push(data[k]);
+                regions.push(data[k].region);
+                data[k].values.forEach(function(v){
+                    if (! years.includes(v.year)){
+                        years.push(v.year);
+                    }   
+                })
             }
-            let key = "$" + nested.keys()[k]; // for some reason, the key names are prefixed with a dollar in the nested data
-            let region = nested[key];
-            //creates a list of the unique years
-            for (let j in region.keys()){
-                if (years.indexOf(region.keys()[j]) === -1){
-                      years.push(region.keys()[j]);
-                }
-                let year = "$" + region.keys()[j];
-                let value = region[year];
-                //adds the region/year values to a storing dict
-                store.push({region : key.substring(1, key.length),
-                        year : year.substring(1, year.length),
-                        paid : value});
-            };
-          };
-        // this bit nests the values for each year within the region object
-        for (let r in regions){
-            let holdingDict = {region : regions[r],
-                                values: []};
-            for (let y in years){
-                holdingDict.values.push({"year" : years[y],
-                                        "region" : regions[r],
-                                        // filters the exact intersection of region and year to provide the correct value
-                                        "paid" : store.filter(function(st){
-                                            return st.region === regions[r] && st.year === years[y]})[0].paid});
-            };
-            yearsInRegions.push(holdingDict);
-        };
-        let max = Math.ceil(d3.max(store, function(d){return d.paid;})/1000000) * 1000000;
+        })
+        this.yMax = Math.ceil(d3.max(ExpensesData, function(d){ return d3.max(d.values, function(v){return v.paid});})/1000000) * 1000000;
         this.regions = regions;
-        this.years = years;
-        this.chartData = yearsInRegions;
-        this.yMax = max;
+        this.years = years.sort();
+        this.chartData = ExpensesData;     
     }
 
-    _setSize(){
-        console.log(this);
-        let margin = this.props.margin;
-        this.chartWidth = this._width - margin.l - margin.r;
-        this.chartHeight = this._height - margin.t - margin.b;
-
-        this._chartLayer
-            .attr("width", this.chartWidth)
-            .attr("height", this.chartHeight)
-            .attr("transform", `translate(${margin.l}, ${margin.t})`);
-
-
-        this.xScale.range([0, this.chartWidth]);
-        this.xInScale.range([0, this.xScale.bandwidth()]);
-        this.yScale.range([this.chartHeight, 0]);
-
-
+    setFontSizeAndColour(selection, size){
+        // Sets a consistent font family for all the text
+        selection
+            .style("font-family", "Oswald")
+            .style("font-size",`${size}px`)
     }
 
     addAxes(){
+        // Adds the x- and y-axes, axis ticks, axis labels and styles them all
         let margin = this.props.margin;
 
         let yAxis = d3.axisLeft(this.yScale)
             .tickSizeInner(-this.chartWidth)
-            .tickFormat(d3.formatPrefix(".0", 1e6));
+            .tickFormat(d3.formatPrefix(".0", 1e6)); //'13M instead of 13000000
 
-        this._axisLayer.append("g")
+        this.axisLayer.append("g")
             .attr("transform", `translate(${margin.l}, ${margin.t})`)
             .attr("class", "axis y")
             .call(yAxis);
 
         var yTicks = d3.selectAll(".axis.y > .tick > text");
         yTicks.nodes().forEach(function(t){
+            // prepend a '£' to the axis ticks
             t.innerHTML = `£${t.innerHTML}`
         });
-        yTicks.style("font-family", "Oswald")
-            .style("font-size","12px");
+        yTicks.attr('transform', 'translate(-5, 0)')
+            .call(this.setFontSizeAndColour, 12);
 
-        this._axisLayer.append("text")
+        this.axisLayer.append("text")
             .text("Total value of expense claims")
             .attr("x", 0 -(this.chartHeight / 2))
             .attr("y", margin.l /2 )
             .attr("text-anchor", "middle")
             .attr("transform", "rotate(-90)")
-            .style("font-family", "Oswald")
-            .style("font-size","20px")
+            .call(this.setFontSizeAndColour, 20);
             ;
 
         let xAxis = d3.axisBottom(this.xScale);
 
-        this._axisLayer.append("g")
+        this.axisLayer.append("g")
             .attr("class", "axis x")
             .attr("transform", `translate(${margin.l}, ${this.chartHeight + margin.t})`)
             .call(xAxis)
           .selectAll(".tick text")
-            .call(this._wrap, this.xScale.bandwidth());
+            .call(this.wrap, this.xScale.bandwidth());
 
-        this._axisLayer.append("text")
+        this.axisLayer.append("text")
             .text("Region")
             .attr("transform",
                 `translate(${(this._width + margin.l)/2}, ${this.chartHeight + margin.t + 50})`)
             .style("text-anchor", "middle")
-            .style("font-family", "Oswald")
-            .style("font-size","20px");
+            .call(this.setFontSizeAndColour, 20);
 
         d3.selectAll(".axis.x > .tick > text")
-            .style("font-family", "Oswald")
-            .style("font-size","12px")
+            .call(this.setFontSizeAndColour, 12)
             ;
-
     }
 
-
-
+    setColours(current, comparison, positive, negative){
+        // Changes the colour of the bars based on hover
+        let currentClassName = current.split(" ")[1];
+        let returnVal = null;
+        if (currentClassName === comparison){return  positive;}
+        else {return negative;}
+    }
 
     setInteractions(){
+        // Sets up the hover interactions on the chart
         let colorScale = this.colors;
         let svg = this._svg;
+        let setColours = this.setColours;
 
-        // SET OTHER BARS TO GREY WHEN MOUSEOVER
-        // creates the hover interactions for the chart. Some of this might be redundant because I used it from a more complex version
         this.years.forEach(function(e, i){
-            let className = e.replace(/\s/g,'').replace("&", "");
+            let className = e;
             svg.selectAll(`._${className}`)
-                .on("mouseover", function(){
+                .on("mouseover", function(){ //Only the bar and corresponding legend items are coloured in on hover
                     let innerClass = this.className.baseVal.split(" ")[1];
-
+                
                     svg.selectAll(".bar")
-                        .attr("fill", function(){
-                            let currentClassName = this.className.baseVal.split(" ")[1];
-                            
-                            if (currentClassName === innerClass){
-                                return colorScale(innerClass);
-                            }
-                            else{
-                                return "#d3d3d3";
-                            }
-                        });
-
+                        .attr("fill", function() {return setColours(this.className.baseVal, innerClass, colorScale(innerClass), '#d3d3d3');})             
+                        .style("stroke", function(){return setColours(this.className.baseVal, innerClass, '#333', 'none');});
 
                     svg.selectAll(`.legend-text`)
-                        .style("fill", function(){
-                            let currentClassName = this.className.baseVal.split(" ")[1];
-                            if (currentClassName === innerClass){
-                                return "black";
-                            }
-                            else{
-                                return "#d3d3d3";
-                            }
-                        });
+                        .style("fill", function(){ return setColours(this.className.baseVal, innerClass, 'black','#d3d3d3');});
+
                     svg.selectAll(`.legend-box`)
-                        .style("fill", function(){
-                            let currentClassName = this.className.baseVal.split(" ")[1];
-                            
-                            if (currentClassName === innerClass){
-                                return colorScale(innerClass);
-                            }
-                            else{
-                                return "#d3d3d3";
-                            }
-                        });
+                        .style("fill", function(){ return setColours(this.className.baseVal, innerClass, colorScale(innerClass), '#d3d3d3');});
                 })
-                .on("mouseout", function(){
-                    let innerClass = this.className.baseVal.split(" ")[1];
+                .on("mouseout", function(){ // Change the colour to what it was before
                     svg.selectAll(".bar")
-                        .attr("fill", function(){
-                                let currentClassName = this.className.baseVal.split(" ")[1];
-                                return colorScale(currentClassName);
-                            });
+                        .attr("fill", function(){return colorScale(this.className.baseVal.split(" ")[1]);})
+                        .style("stroke", '#333');
+
                     svg.selectAll(`.legend-text`)
                         .style("fill", "black");
 
                     svg.selectAll(".legend-box")
-                        .style("fill", function(){
-                                let currentClassName = this.className.baseVal.split(" ")[1];
-                                return colorScale(currentClassName);
-                            });
+                        .style("fill", function(){return colorScale(this.className.baseVal.split(" ")[1]);});
                 })
             });
     }
 
-
-    componentDidMount(){
+    setSize(){
         // Inital setup of graph svg here
         this._svg.style("width", "100%"); //I can reference that which was rendered using the same name
         this._svg.style("height", "100%");
@@ -245,11 +166,27 @@ class GroupedBarChart extends Component{
         this._svg.style("width", "100%"); //I can reference that which was rendered using the same name
         this._svg.style("height", "100%");
 
-        this._axisLayer = this._svg.append("g").classed("axisLayer", true),
-        this._chartLayer = this._svg.append("g").classed("chartLayer", true);
+        let margin = this.props.margin;
+        this.chartWidth = this._width - margin.l - margin.r;
+        this.chartHeight = this._height - margin.t - margin.b;
 
-        // call setsize from within the componentDidMount
-        this._summariseData(ExpensesData);
+        this._chartLayer
+            .attr("width", this.chartWidth)
+            .attr("height", this.chartHeight)
+            .attr("transform", `translate(${margin.l}, ${margin.t})`);
+
+        this.xScale.range([0, this.chartWidth]);
+        this.xInScale.range([0, this.xScale.bandwidth()]);
+        this.yScale.range([this.chartHeight, 0]);
+    }
+
+
+    componentDidMount(){
+        // Sets up the different components of the chart
+        this.getData(this.props.data);
+
+        this.axisLayer = this._svg.append("g").classed("axisLayer", true),
+        this._chartLayer = this._svg.append("g").classed("chartLayer", true);
 
         this.xScale = d3.scaleBand().domain(this.regions)
             .paddingInner(0.1)
@@ -262,17 +199,15 @@ class GroupedBarChart extends Component{
                     "rgb(215,5,13)", "rgb(144,45,84)", "rgb(164,62,3)"])
             .domain(this.years.map(function(y){return `_${y}`}))
 
-        this._setSize();
-
-                
-                
+        this.setSize();
+        
         let colorScale = this.colors,
             xScale = this.xScale,
             xInScale = this.xInScale,
             yScale = this.yScale,
             chartHeight = this.chartHeight;
         
-
+        // draws the bars
         let t = d3.transition()
             .duration(1000)
             .ease(d3.easeLinear);
@@ -294,32 +229,29 @@ class GroupedBarChart extends Component{
             .attr("height", 0)
             .attr("fill", function(d) {return colorScale(`_${d['year']}`); })
             .attr("opacity", 0.8)
-            .attr("class", function(d) { return `bar _${d['year'].replace(/\s/g,'').replace("&", "")} _${d['region'].replace(/\s/g,'').replace("&", "")}`;})
+            .attr("class", function(d) { return `bar _${d['year']}`;})
             .attr("transform", function(d) {return "translate(" + [xInScale(d['year']), chartHeight] + ")" });
 
         bar.merge(newBar).transition(t)
             .attr("height", function(d) {  return chartHeight - yScale(d.paid); })
             .attr("transform", function(d) { return "translate(" + [xInScale(d['year']), yScale(d.paid)] + ")" });
 
-        // creating the legend scale
+        // Creates the legend
         let legendY = d3.scaleBand().domain(this.years).range([10, 130]);
 
-        // creating the legend container  
         let legend = this._chartLayer.append("g")
             .style("transform", "translate(50, 30")
             .attr("class", "legend");
             
-        // adding the boxes to the legend, matching the classes to the bars so we can highlight both at once
         legend.selectAll(".box")
             .data(this.years)
           .enter().append("rect")
             .attr("width", 8)
             .attr("height", 8)
-            .attr("class", function(d){return `legend-box _${d.replace(/\s/g,'').replace("&", "")}`})
+            .attr("class", function(d){return `legend-box _${d}`})
             .attr("fill", function(d) { return colorScale(d); })
             .attr("transform",function(d){return `translate(20,${legendY(d)})`});
             
-        // adding the legend labels  
         legend.selectAll("text")
             .data(this.years)
           .enter().append("text")
@@ -327,39 +259,22 @@ class GroupedBarChart extends Component{
             .text(function(d){return d;})
             .attr("text-anchor", "left")
             .attr("dy", "0.7em")
-            .attr("class", function(d){return `legend-text _${d.replace(/\s/g,'').replace("&", "")}`})
-            .style("font-family", "Oswald")
-            .style("font-size","12px")
+            .attr("class", function(d){return 'legend-text'})
+            .call(this.setFontSizeAndColour, 12)
             ;
         
         this.setInteractions();
         this.addAxes();
     }
-
-    
+   
     render(){
-        // d3 update functions go here, but don't conflict the two
-        
-
-
-        // Returns things which go into the DOM
         return (
             <div className = "yearsInRegions">
                 <svg ref={ (c) => this._svg = d3.select(c) } />
             </div>
         )
     }
-
 }
-
-
-
-
-
-
-
-
-
 
 export default GroupedBarChart;
 
